@@ -426,12 +426,14 @@
     }
 
     header .logo {
-      height: 62px;
+      height: 58px;
       width: auto;
-      max-width: 160px;
+      max-width: 120px;
       object-fit: contain;
-      /* يحوّل الشعار إلى أبيض بالكامل — يتطلب صورة PNG بخلفية شفافة */
-      filter: brightness(0) invert(1);
+      background: #fff;
+      border-radius: 14px;
+      padding: 8px 12px;
+      box-shadow: 0 3px 12px #0004;
     }
 
     .page {
@@ -564,7 +566,7 @@
 
   <header>
     <div class="brand">
-      <img id="collegeLogo" class="logo" src="logo.png" alt="شعار المؤسسة العامة للتدريب التقني والمهني" onerror="this.style.display='none'">
+      <img id="collegeLogo" class="logo" src="شعار المؤسسة.png" alt="شعار المؤسسة العامة للتدريب التقني والمهني" onerror="this.style.display='none'">
       <div>
         <h1>نظام الأنشطة والعهدة</h1>
         <p>الكلية التقنية بالمذنب</p>
