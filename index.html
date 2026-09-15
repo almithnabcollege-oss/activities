@@ -8,6 +8,7 @@
 
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     :root {
@@ -414,6 +415,126 @@
         padding: 10px 6px;
       }
     }
+
+    /* ===== تلميع المظهر + الشعار ===== */
+    header .brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: right;
+    }
+
+    header .logo {
+      height: 62px;
+      width: auto;
+      max-width: 160px;
+      object-fit: contain;
+      /* يحوّل الشعار إلى أبيض بالكامل — يتطلب صورة PNG بخلفية شفافة */
+      filter: brightness(0) invert(1);
+    }
+
+    .page {
+      box-shadow: 0 4px 22px #17408016;
+      border: 1px solid #eef2f8;
+    }
+
+    .stat {
+      box-shadow: 0 4px 14px #17408022;
+    }
+
+    .nav button {
+      border-radius: 999px;
+    }
+
+    /* بطاقات الإجراءات السريعة */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .quick {
+      border: 0;
+      border-radius: 16px;
+      padding: 22px 14px;
+      color: #fff;
+      font: inherit;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: 0.18s;
+      box-shadow: 0 3px 12px #17408022;
+    }
+
+    .quick:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 20px #17408033;
+    }
+
+    .quick .ico {
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .quick.a {
+      background: linear-gradient(135deg, #173f73, #285a9a);
+    }
+
+    .quick.b {
+      background: linear-gradient(135deg, #178a52, #20a768);
+    }
+
+    .quick.c {
+      background: linear-gradient(135deg, #eaa900, #d99400);
+      color: #3a2c00;
+    }
+
+    /* نافذة ماسح الكاميرا دائمًا فوق نوافذ العهدة/الإرجاع */
+    #qrModal {
+      z-index: 1500;
+    }
+
+    /* رمز QR للأدوات */
+    #toolQrCode img,
+    #toolQrCode canvas {
+      margin: 0 auto;
+      display: block;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+
+      #toolQrModal,
+      #toolQrModal * {
+        visibility: visible;
+      }
+
+      #toolQrModal {
+        position: absolute;
+        inset: 0;
+        background: #fff;
+        padding: 40px;
+        overflow: visible;
+      }
+
+      #toolQrModal .modal-box {
+        box-shadow: none;
+        margin: 0 auto;
+      }
+
+      #toolQrModal .close,
+      #printToolQrBtn {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 
@@ -442,8 +563,13 @@
   </div>
 
   <header>
-    <h1>نظام الأنشطة والعهدة</h1>
-    <p>الكلية التقنية بالمذنب</p>
+    <div class="brand">
+      <img id="collegeLogo" class="logo" src="logo.png" alt="شعار المؤسسة العامة للتدريب التقني والمهني" onerror="this.style.display='none'">
+      <div>
+        <h1>نظام الأنشطة والعهدة</h1>
+        <p>الكلية التقنية بالمذنب</p>
+      </div>
+    </div>
   </header>
 
   <div class="wrap hidden" id="app">
@@ -456,9 +582,9 @@
 
     <nav class="nav">
       <button class="active" data-page="dashboard">لوحة التحكم</button>
-      <button data-page="trainees">المتدربون</button>
-      <button data-page="activities">الأنشطة</button>
       <button data-page="tools">عهدة الأدوات</button>
+      <button data-page="activities">الأنشطة</button>
+      <button data-page="trainees">المتدربون</button>
       <button data-page="reports">التقارير</button>
       <button data-page="settings">الإعدادات</button>
       <button data-page="users" data-admin-only class="hidden">المستخدمون</button>
@@ -495,9 +621,17 @@
 
       <h3>إجراءات سريعة</h3>
 
-      <button class="btn" id="quickActivity">تسجيل نشاط جديد</button>
-      <button class="btn success" id="quickBorrow">تسجيل عهدة جديدة</button>
-      <button class="btn warning" id="quickReturn">تسجيل إرجاع</button>
+      <div class="quick-grid">
+        <button class="quick b" id="quickBorrow">
+          <span class="ico">📦</span>تسجيل عهدة
+        </button>
+        <button class="quick c" id="quickReturn">
+          <span class="ico">↩️</span>تسجيل إرجاع
+        </button>
+        <button class="quick a" id="quickActivity">
+          <span class="ico">📝</span>تسجيل نشاط
+        </button>
+      </div>
     </section>
 
     <section id="trainees" class="page">
@@ -668,7 +802,7 @@
     <div class="modal-box">
       <button class="close" id="closeQrBtn">×</button>
 
-      <h3>مسح بطاقة المتدرب</h3>
+      <h3 id="qrModalTitle">مسح بطاقة المتدرب</h3>
 
       <div class="notice info">
         اسمح باستخدام الكاميرا عند طلب الإذن، ثم وجّهها نحو رمز QR وسيُقرأ تلقائيًا.
@@ -794,8 +928,8 @@
 
       <h3>تسجيل عهدة جديدة</h3>
 
-      <button class="btn" id="chooseBorrowTrainee">
-        اختيار المتدرب
+      <button class="btn secondary" id="chooseBorrowTrainee">
+        تغيير المتدرب
       </button>
 
       <div id="borrowTraineeInfo"></div>
@@ -825,12 +959,32 @@
 
       <h3>تسجيل إرجاع أدوات</h3>
 
-      <button class="btn" id="chooseReturnTrainee">
-        اختيار المتدرب
+      <button class="btn secondary" id="chooseReturnTrainee">
+        تغيير المتدرب
       </button>
 
       <div id="returnTraineeInfo"></div>
       <div id="returnToolList"></div>
+    </div>
+  </div>
+
+  <div id="toolQrModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="toolQrModal">×</button>
+
+      <h3>رمز QR للأداة</h3>
+
+      <div class="notice info">
+        اطبع الرمز والصقه على الأداة. عند العهدة أو الإرجاع امسحه لاختيار الأداة مباشرة.
+      </div>
+
+      <div style="text-align: center; padding: 10px;">
+        <div id="toolQrName" style="font-weight: bold; font-size: 18px; margin-bottom: 10px;"></div>
+        <div id="toolQrCode" style="display: inline-block; padding: 12px; background: #fff; border-radius: 10px;"></div>
+        <div id="toolQrId" style="margin-top: 8px; color: #555;"></div>
+      </div>
+
+      <button class="btn" id="printToolQrBtn">🖨️ طباعة الرمز</button>
     </div>
   </div>
 
@@ -863,6 +1017,7 @@
       var traineeMode = '';
       var qrScanner = null;
       var qrRunning = false;
+      var qrPurpose = 'trainee'; // 'trainee' لمسح البطاقة، 'tool' لمسح رمز الأداة
 
       function $(id) {
         return document.getElementById(id);
@@ -1385,6 +1540,7 @@
             '</div>';
 
           renderAvailableTools();
+          showModal('borrowModal');
         }
 
         if (traineeMode === 'return') {
@@ -1398,6 +1554,7 @@
             '</div>';
 
           renderReturnTools();
+          showModal('returnModal');
         }
 
         if (traineeMode === 'participant') {
@@ -1407,11 +1564,17 @@
         hideModal('traineeModal');
       }
 
-      function openQrScanner() {
+      function openQrScanner(purpose) {
         if (typeof Html5Qrcode === 'undefined') {
           alert('تعذر تحميل قارئ QR. تحقق من الإنترنت ثم حدّث الصفحة.');
           return;
         }
+
+        qrPurpose = (purpose === 'tool') ? 'tool' : 'trainee';
+
+        $('qrModalTitle').textContent = (qrPurpose === 'tool')
+          ? 'مسح رمز الأداة'
+          : 'مسح بطاقة المتدرب';
 
         showModal('qrModal');
 
@@ -1550,6 +1713,12 @@
         hideModal('qrModal');
         $('qrMessage').innerHTML = '';
 
+        // مسح رمز أداة (أثناء العهدة).
+        if (qrPurpose === 'tool') {
+          handleToolScan(code);
+          return;
+        }
+
         var traineeId = extractTraineeIdFromQr(code);
 
         $('modalTraineeSearch').value = traineeId;
@@ -1570,6 +1739,31 @@
             'تأكد من استيراد قائمة المتدربين المحدّثة، أو اختر يدويًا من نتائج البحث.'
           );
         }
+      }
+
+      // يعالج مسح رمز الأداة (المولّد من هذا النظام بصيغة TOOL:<رقم الأداة>).
+      function handleToolScan(code) {
+        var raw = String(code || '').trim().replace(/^TOOL:/i, '').trim();
+
+        var tool = data.tools.find(function (item) {
+          return String(item['رقم الأداة']) === raw;
+        });
+
+        if (!tool) {
+          alert('لم يتم العثور على أداة بالرقم: ' + raw);
+          return;
+        }
+
+        if (tool['الحالة الحالية'] !== 'متاحة') {
+          alert(
+            'الأداة «' + tool['اسم الأداة'] + '» غير متاحة حاليًا (الحالة: ' +
+            tool['الحالة الحالية'] + ').'
+          );
+          return;
+        }
+
+        selectedTool = tool;
+        renderAvailableTools();
       }
 
       function onQrRead(decodedText) {
@@ -1796,6 +1990,9 @@
               escapeHtml(status) +
               '</span>' +
               '<p>آخر حالة: ' + escapeHtml(tool['آخر حالة']) + '</p>' +
+              '<button class="btn secondary" data-tool-qr="' +
+              escapeHtml(tool['رقم الأداة']) +
+              '" style="margin-top: 8px;">⬛ رمز QR للطباعة</button>' +
               '</div>';
           });
 
@@ -1812,6 +2009,42 @@
 
           showModal('toolModal');
         };
+
+        document.querySelectorAll('[data-tool-qr]').forEach(function (button) {
+          button.onclick = function () {
+            showToolQr(button.dataset.toolQr);
+          };
+        });
+      }
+
+      // يولّد ويعرض رمز QR للأداة (بصيغة TOOL:<رقم الأداة>) مع إمكانية الطباعة.
+      function showToolQr(toolId) {
+        var tool = data.tools.find(function (item) {
+          return String(item['رقم الأداة']) === String(toolId);
+        });
+
+        if (!tool) {
+          return;
+        }
+
+        $('toolQrName').textContent = tool['اسم الأداة'];
+        $('toolQrId').textContent = 'رقم الأداة: ' + tool['رقم الأداة'];
+
+        var holder = $('toolQrCode');
+        holder.innerHTML = '';
+
+        if (typeof QRCode === 'undefined') {
+          holder.textContent = 'تعذّر تحميل مولّد QR. تحقق من الإنترنت وحدّث الصفحة.';
+        } else {
+          new QRCode(holder, {
+            text: 'TOOL:' + tool['رقم الأداة'],
+            width: 200,
+            height: 200,
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+
+        showModal('toolQrModal');
       }
 
       function saveTool() {
@@ -1864,7 +2097,8 @@
 
         $('borrowActivity').innerHTML = options;
 
-        showModal('borrowModal');
+        // التدفّق الجديد: يبدأ مباشرة بمسح البطاقة / إدخال رقم المتدرب.
+        openTraineePicker('borrow');
       }
 
       function renderAvailableTools() {
@@ -1880,6 +2114,8 @@
 
         var html =
           '<h4>اختر الأداة المطلوبة</h4>' +
+          '<button class="btn secondary" id="scanToolBtn" style="margin-bottom: 8px;">' +
+          '📷 مسح رمز الأداة</button>' +
           '<div class="tool-grid">';
 
         availableTools.forEach(function (tool) {
@@ -1902,6 +2138,12 @@
         html += '</div>';
 
         $('borrowToolList').innerHTML = html;
+
+        if ($('scanToolBtn')) {
+          $('scanToolBtn').onclick = function () {
+            openQrScanner('tool');
+          };
+        }
 
         document.querySelectorAll('[data-select-tool]').forEach(function (element) {
           element.onclick = function () {
@@ -1949,7 +2191,8 @@
         $('returnToolList').innerHTML =
           '<div class="notice info">اختر المتدرب أولًا.</div>';
 
-        showModal('returnModal');
+        // التدفّق الجديد: يبدأ مباشرة بمسح البطاقة / إدخال رقم المتدرب.
+        openTraineePicker('return');
       }
 
       function renderReturnTools() {
@@ -2522,7 +2765,9 @@
           confirmTraineeSelection
         );
 
-        $('scanQrBtn').addEventListener('click', openQrScanner);
+        $('scanQrBtn').addEventListener('click', function () {
+          openQrScanner('trainee');
+        });
         $('closeQrBtn').addEventListener('click', closeQrScanner);
         $('stopQrBtn').addEventListener('click', closeQrScanner);
         $('startQrLiveBtn').addEventListener('click', startQrCamera);
@@ -2531,6 +2776,10 @@
           $('qrFileInput').click();
         });
         $('qrFileInput').addEventListener('change', handleQrFile);
+
+        $('printToolQrBtn').addEventListener('click', function () {
+          window.print();
+        });
 
         $('saveActivityBtn').addEventListener('click', saveActivity);
         $('saveToolBtn').addEventListener('click', saveTool);
