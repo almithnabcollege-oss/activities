@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -330,6 +329,59 @@
       display: none !important;
     }
 
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--background);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 2000;
+    }
+
+    .login-box {
+      background: #fff;
+      width: 100%;
+      max-width: 380px;
+      padding: 26px 22px;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px #17408022;
+      border-top: 5px solid var(--primary);
+    }
+
+    .login-box h2 {
+      margin: 0 0 4px;
+      border: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    .login-sub {
+      text-align: center;
+      color: var(--gray);
+      margin: 0 0 18px;
+      font-size: 13px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fff;
+      border: 1px solid #d5dfeb;
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .user-chip {
+      font-weight: bold;
+      color: var(--primary);
+    }
+
     .loading {
       opacity: 0.65;
       pointer-events: none;
@@ -366,12 +418,42 @@
 </head>
 
 <body>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <h2>تسجيل الدخول</h2>
+      <p class="login-sub">نظام الأنشطة والعهدة — الكلية التقنية بالمذنب</p>
+
+      <div id="loginConfigMsg"></div>
+
+      <div class="form-group">
+        <label>اسم المستخدم</label>
+        <input id="loginUsername" autocomplete="username" placeholder="اسم المستخدم">
+      </div>
+
+      <div class="form-group">
+        <label>كلمة المرور</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+      </div>
+
+      <button class="btn success" id="loginBtn" style="width: 100%;">دخول</button>
+
+      <div id="loginMsg"></div>
+    </div>
+  </div>
+
   <header>
     <h1>نظام الأنشطة والعهدة</h1>
     <p>الكلية التقنية بالمذنب</p>
   </header>
 
-  <div class="wrap" id="app">
+  <div class="wrap hidden" id="app">
+    <div class="topbar">
+      <span class="user-chip" id="currentUserBox"></span>
+      <button class="btn secondary" id="logoutBtn">تسجيل الخروج</button>
+    </div>
+
+    <div id="configBanner" class="notice error hidden"></div>
+
     <nav class="nav">
       <button class="active" data-page="dashboard">لوحة التحكم</button>
       <button data-page="trainees">المتدربون</button>
@@ -379,6 +461,7 @@
       <button data-page="tools">عهدة الأدوات</button>
       <button data-page="reports">التقارير</button>
       <button data-page="settings">الإعدادات</button>
+      <button data-page="users" data-admin-only class="hidden">المستخدمون</button>
     </nav>
 
     <section id="dashboard" class="page active">
@@ -420,29 +503,31 @@
     <section id="trainees" class="page">
       <h2>بيانات المتدربين</h2>
 
-      <div class="notice info">
-        ارفع ملف المتدربين مرة واحدة فقط. سيتم تخزينه في Google Sheets
-        وسيظهر من جميع الأجهزة.
+      <div data-admin-only class="hidden">
+        <div class="notice info">
+          ارفع ملف المتدربين مرة واحدة فقط. سيتم تخزينه في Google Sheets
+          وسيظهر من جميع الأجهزة. (الاستيراد متاح للمسؤول فقط.)
+        </div>
+
+        <div class="form-group">
+          <label>رفع ملف CSV أو Excel</label>
+          <input id="traineeFile" type="file" accept=".csv,.xlsx,.xls">
+        </div>
+
+        <div class="form-group">
+          <label>طريقة الاستيراد</label>
+          <select id="importMode">
+            <option value="replace">استبدال قائمة المتدربين كاملة</option>
+            <option value="update">إضافة أو تحديث حسب رقم المتدرب</option>
+          </select>
+        </div>
+
+        <button class="btn success" id="importTrainees">
+          رفع واستيراد القائمة
+        </button>
+
+        <div id="traineeMessage"></div>
       </div>
-
-      <div class="form-group">
-        <label>رفع ملف CSV أو Excel</label>
-        <input id="traineeFile" type="file" accept=".csv,.xlsx,.xls">
-      </div>
-
-      <div class="form-group">
-        <label>طريقة الاستيراد</label>
-        <select id="importMode">
-          <option value="replace">استبدال قائمة المتدربين كاملة</option>
-          <option value="update">إضافة أو تحديث حسب رقم المتدرب</option>
-        </select>
-      </div>
-
-      <button class="btn success" id="importTrainees">
-        رفع واستيراد القائمة
-      </button>
-
-      <div id="traineeMessage"></div>
 
       <div class="form-group">
         <label>البحث عن متدرب</label>
@@ -491,6 +576,61 @@
       </div>
 
       <button class="btn" id="saveEmployee">حفظ الاسم</button>
+
+      <h3>تغيير كلمة المرور</h3>
+
+      <div class="form-group">
+        <label>كلمة المرور الحالية</label>
+        <input id="oldPassword" type="password" autocomplete="current-password">
+      </div>
+
+      <div class="form-group">
+        <label>كلمة المرور الجديدة (6 أحرف على الأقل)</label>
+        <input id="newPassword" type="password" autocomplete="new-password">
+      </div>
+
+      <button class="btn" id="changePasswordBtn">تحديث كلمة المرور</button>
+      <div id="changePasswordMsg"></div>
+    </section>
+
+    <section id="users" class="page">
+      <h2>إدارة المستخدمين</h2>
+
+      <div class="notice info">
+        هذه الشاشة للمسؤول فقط. أنشئ حسابات للموظفين وتحكّم في تفعيلها وكلمات مرورها.
+      </div>
+
+      <h3>إضافة مستخدم جديد</h3>
+
+      <div class="form-group">
+        <label>اسم المستخدم (إنجليزي بدون مسافات) *</label>
+        <input id="newUserUsername" autocomplete="off" placeholder="مثال: ahmed">
+      </div>
+
+      <div class="form-group">
+        <label>الاسم المعروض *</label>
+        <input id="newUserName" placeholder="مثال: أحمد العتيبي">
+      </div>
+
+      <div class="form-group">
+        <label>كلمة المرور المبدئية (6 أحرف على الأقل) *</label>
+        <input id="newUserPassword" type="text" placeholder="يغيّرها الموظف بعد أول دخول">
+      </div>
+
+      <div class="form-group">
+        <label>الصلاحية *</label>
+        <select id="newUserRole">
+          <option value="employee">موظف</option>
+          <option value="admin">مسؤول</option>
+        </select>
+      </div>
+
+      <button class="btn success" id="createUserBtn">إنشاء الحساب</button>
+      <div id="createUserMsg"></div>
+
+      <h3>الحسابات الحالية</h3>
+      <button class="btn secondary" id="refreshUsersBtn">تحديث القائمة</button>
+      <div id="usersTable"></div>
     </section>
   </div>
 
@@ -501,12 +641,12 @@
       <h3>اختيار متدرب</h3>
 
       <div class="notice info">
-        على الجوال: اضغط الزر بالأسفل ثم «التقاط صورة رمز QR» لفتح الكاميرا.
-        وعلى الكمبيوتر يمكنك استخدام قارئ QR أو إدخال البيانات يدويًا.
+        اضغط الزر بالأسفل لفتح الكاميرا، ووجّهها نحو رمز QR ليُقرأ تلقائيًا.
+        أو ابحث بالاسم/الرقم يدويًا.
       </div>
 
       <button class="btn success" id="scanQrBtn">
-        فتح ماسح بطاقة QR
+        فتح ماسح بطاقة QR بالكاميرا
       </button>
 
       <div class="form-group">
@@ -531,24 +671,22 @@
       <h3>مسح بطاقة المتدرب</h3>
 
       <div class="notice info">
-        الطريقة الأضمن على الجوال: اضغط «التقاط صورة رمز QR» وستفتح كاميرا الجهاز
-        مباشرة، ثم صوّر رمز QR بوضوح.
+        اسمح باستخدام الكاميرا عند طلب الإذن، ثم وجّهها نحو رمز QR وسيُقرأ تلقائيًا.
       </div>
-
-      <button class="btn success" id="qrPhotoBtn">
-        📷 التقاط صورة رمز QR (يعمل على كل الأجهزة)
-      </button>
-
-      <!-- capture="environment" يفتح كاميرا الجهاز الخلفية مباشرة على الجوال -->
-      <input id="qrFileInput" type="file" accept="image/*" capture="environment" class="hidden">
-
-      <button class="btn secondary" id="startQrLiveBtn">
-        تشغيل الكاميرا المباشرة (للكمبيوتر)
-      </button>
 
       <div id="qrReader" style="margin-top: 12px;"></div>
 
       <div id="qrMessage"></div>
+
+      <button class="btn success" id="startQrLiveBtn">
+        تشغيل / إعادة تشغيل الكاميرا
+      </button>
+
+      <!-- بديل احتياطي: التقاط صورة إن تعذّر البث المباشر -->
+      <button class="btn secondary" id="qrPhotoBtn">
+        📷 التقاط صورة للرمز (بديل)
+      </button>
+      <input id="qrFileInput" type="file" accept="image/*" capture="environment" class="hidden">
 
       <button class="btn secondary" id="stopQrBtn">
         إيقاف الكاميرا
@@ -700,6 +838,17 @@
     (function () {
       'use strict';
 
+      /* ============================================================
+         إعدادات الاتصال بالخادم — عدّل هذين السطرين فقط
+         ------------------------------------------------------------
+         1) API_URL: انسخ رابط تطبيق Apps Script المنشور (ينتهي بـ /exec)
+         2) API_TOKEN: يجب أن يطابق تمامًا الرمز الموجود في ملف Apps Script
+         ============================================================ */
+      var API_URL = 'https://script.google.com/macros/s/AKfycbwm_U19r9qemnoEgkH81O3VMNfJhBSgQ_-1-unqCZ6qbDZjACUniGVG-ihPeG5QO10k/exec';
+
+      // جلسة المستخدم بعد الدخول: { token, username, name, role } — تُحفظ محليًا.
+      var session = null;
+
       var data = {
         trainees: [],
         tools: [],
@@ -717,6 +866,12 @@
 
       function $(id) {
         return document.getElementById(id);
+      }
+
+      function isConfigured() {
+        return typeof API_URL === 'string' &&
+          API_URL.indexOf('http') === 0 &&
+          API_URL.indexOf('/exec') > -1;
       }
 
       function escapeHtml(value) {
@@ -741,7 +896,11 @@
       }
 
       function getEmployeeName() {
-        return localStorage.getItem('employeeName') || 'موظف';
+        try {
+          return localStorage.getItem('employeeName') || 'موظف';
+        } catch (error) {
+          return 'موظف';
+        }
       }
 
       function showModal(id) {
@@ -760,38 +919,93 @@
         }
       }
 
+      /* ============================================================
+         طبقة الاتصال بالـ API عبر fetch
+         - نستخدم POST بنوع محتوى text/plain لتفادي طلب preflight
+           الذي لا يدعمه Apps Script.
+         - نفس أسماء الإجراءات المستخدمة سابقًا في google.script.run.
+         ============================================================ */
+      function saveSession() {
+        try {
+          if (session) {
+            localStorage.setItem('authSession', JSON.stringify(session));
+          } else {
+            localStorage.removeItem('authSession');
+          }
+        } catch (error) {}
+      }
+
+      function loadSession() {
+        try {
+          var raw = localStorage.getItem('authSession');
+          session = raw ? JSON.parse(raw) : null;
+        } catch (error) {
+          session = null;
+        }
+      }
+
+      function clearSession() {
+        session = null;
+        saveSession();
+      }
+
+      function callApi(action, argument) {
+        return fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify({
+            action: action,
+            argument: argument,
+            token: session ? session.token : ''
+          })
+        }).then(function (response) {
+          return response.json();
+        }).then(function (payload) {
+          // انتهاء الجلسة أو عدم الصلاحية: نعيد المستخدم لشاشة الدخول.
+          if (payload && payload.needLogin) {
+            clearSession();
+            showLogin();
+            throw new Error(payload.error || 'انتهت الجلسة، سجّل الدخول من جديد');
+          }
+
+          if (payload && payload.ok) {
+            return payload.result;
+          }
+
+          throw new Error(
+            payload && payload.error
+              ? payload.error
+              : 'استجابة غير متوقعة من الخادم'
+          );
+        });
+      }
+
       function runServer(name, argument, success) {
+        if (!isConfigured()) {
+          alert('لم يتم ضبط رابط الخادم (API_URL) بعد. راجع دليل النشر.');
+          return;
+        }
+
         setLoading(true);
 
-        google.script.run
-          .withSuccessHandler(function (result) {
+        callApi(name, argument)
+          .then(function (result) {
             setLoading(false);
 
             if (success) {
               success(result);
             }
           })
-          .withFailureHandler(function (error) {
+          .catch(function (error) {
             setLoading(false);
             alert('حدث خطأ: ' + (error.message || error));
-          })[name](argument);
+          });
       }
 
       function runServerNoArgument(name, success) {
-        setLoading(true);
-
-        google.script.run
-          .withSuccessHandler(function (result) {
-            setLoading(false);
-
-            if (success) {
-              success(result);
-            }
-          })
-          .withFailureHandler(function (error) {
-            setLoading(false);
-            alert('حدث خطأ: ' + (error.message || error));
-          })[name]();
+        runServer(name, undefined, success);
       }
 
       function setPage(pageId) {
@@ -823,6 +1037,10 @@
 
         if (pageId === 'tools') {
           renderTools();
+        }
+
+        if (pageId === 'users') {
+          loadUsers();
         }
       }
 
@@ -1090,7 +1308,7 @@
 
         if (!query) {
           $('modalResults').innerHTML =
-            '<div class="notice info">اكتب الاسم أو رقم المتدرب، أو استخدم كاميرا الجوال لمسح البطاقة.</div>';
+            '<div class="notice info">اكتب الاسم أو رقم المتدرب، أو استخدم الكاميرا لمسح البطاقة.</div>';
           return;
         }
 
@@ -1198,10 +1416,8 @@
         showModal('qrModal');
 
         $('qrMessage').innerHTML =
-          '<div class="notice info">إن لم تفتح الكاميرا المباشرة، استخدم زر «التقاط صورة رمز QR» بالأعلى.</div>';
+          '<div class="notice info">جاري تشغيل الكاميرا...</div>';
 
-        // نحاول تشغيل الكاميرا المباشرة (تعمل على الكمبيوتر غالبًا).
-        // على الجوال قد تمنعها قيود Google Apps Script، وحينها يوجّه المستخدم لزر التقاط الصورة.
         setTimeout(function () {
           startQrCamera();
         }, 250);
@@ -1241,14 +1457,14 @@
 
             $('qrMessage').innerHTML =
               '<div class="notice error">' +
-              'تعذّر تشغيل الكاميرا المباشرة على هذا الجهاز. ' +
-              'استخدم زر <b>«📷 التقاط صورة رمز QR»</b> بالأعلى — يعمل على جميع الجوالات.' +
-              '<br><small>السبب التقني: ' +
+              'تعذّر تشغيل الكاميرا المباشرة. تأكد من السماح بإذن الكاميرا، ' +
+              'أو استخدم زر <b>«📷 التقاط صورة للرمز»</b>.' +
+              '<br><small>' +
               escapeHtml(error && error.message ? error.message : error) +
               '</small></div>';
           }
 
-          // نستخدم facingMode: 'environment' كتلميح (بدون exact) لتفادي خطأ OverconstrainedError.
+          // facingMode: 'environment' كتلميح (بدون exact) لتفادي OverconstrainedError.
           qrScanner.start(
             { facingMode: 'environment' },
             config,
@@ -1258,12 +1474,10 @@
         });
       }
 
-      // يفتح كاميرا الجهاز لالتقاط صورة، ثم يفك رمز QR منها.
-      // هذه الطريقة لا تعتمد على getUserMedia، فتعمل داخل إطار Google Apps Script على الجوال.
+      // بديل: التقاط صورة وفك الرمز منها (يعمل حتى لو مُنع البث المباشر).
       function handleQrFile(event) {
         var file = event.target.files && event.target.files[0];
 
-        // تفريغ القيمة للسماح بإعادة اختيار نفس الصورة لاحقًا.
         event.target.value = '';
 
         if (!file) {
@@ -1296,7 +1510,7 @@
 
               $('qrMessage').innerHTML =
                 '<div class="notice error">' +
-                'تعذّرت قراءة رمز QR من الصورة. حاول التقاط صورة أوضح وأقرب للرمز مع إضاءة جيدة.' +
+                'تعذّرت قراءة رمز QR من الصورة. حاول التقاط صورة أوضح وأقرب مع إضاءة جيدة.' +
                 '<br><small>' +
                 escapeHtml(error && error.message ? error.message : error) +
                 '</small></div>';
@@ -1304,7 +1518,7 @@
         });
       }
 
-      // يستقبل نص الكود المقروء (سواء من الكاميرا المباشرة أو من الصورة) ويكمل الاختيار.
+      // يستقبل نص الكود المقروء (من الكاميرا أو الصورة) ويكمل الاختيار.
       function handleDecodedCode(code) {
         hideModal('qrModal');
         $('qrMessage').innerHTML = '';
@@ -2033,6 +2247,208 @@
         $('reportArea').innerHTML = html;
       }
 
+      function roleLabel(role) {
+        return role === 'admin' ? 'مسؤول' : 'موظف';
+      }
+
+      function showLogin() {
+        $('app').classList.add('hidden');
+        $('loginScreen').classList.remove('hidden');
+      }
+
+      function showApp() {
+        $('loginScreen').classList.add('hidden');
+        $('app').classList.remove('hidden');
+
+        $('currentUserBox').textContent =
+          session.name + ' — ' + roleLabel(session.role);
+
+        applyRoleVisibility();
+        loadAllData();
+      }
+
+      function applyRoleVisibility() {
+        var isAdmin = session && session.role === 'admin';
+
+        document.querySelectorAll('[data-admin-only]').forEach(function (element) {
+          element.classList.toggle('hidden', !isAdmin);
+        });
+      }
+
+      function doLogin() {
+        var username = $('loginUsername').value.trim();
+        var password = $('loginPassword').value;
+
+        if (!isConfigured()) {
+          $('loginMsg').innerHTML =
+            '<div class="notice error">لم يتم ضبط رابط الخادم (API_URL) بعد.</div>';
+          return;
+        }
+
+        if (!username || !password) {
+          $('loginMsg').innerHTML =
+            '<div class="notice warn">أدخل اسم المستخدم وكلمة المرور.</div>';
+          return;
+        }
+
+        $('loginMsg').innerHTML =
+          '<div class="notice info">جاري التحقق...</div>';
+
+        callApi('login', { username: username, password: password })
+          .then(function (result) {
+            session = result;
+            saveSession();
+
+            $('loginPassword').value = '';
+            $('loginMsg').innerHTML = '';
+
+            showApp();
+          })
+          .catch(function (error) {
+            $('loginMsg').innerHTML =
+              '<div class="notice error">' +
+              escapeHtml(error.message || error) +
+              '</div>';
+          });
+      }
+
+      function doLogout() {
+        clearSession();
+
+        $('loginUsername').value = '';
+        $('loginPassword').value = '';
+        $('loginMsg').innerHTML = '';
+
+        showLogin();
+      }
+
+      function changeMyPassword() {
+        var oldPassword = $('oldPassword').value;
+        var newPassword = $('newPassword').value;
+
+        if (!oldPassword || !newPassword) {
+          $('changePasswordMsg').innerHTML =
+            '<div class="notice warn">أدخل كلمة المرور الحالية والجديدة.</div>';
+          return;
+        }
+
+        runServer('changeMyPassword', {
+          oldPassword: oldPassword,
+          newPassword: newPassword
+        }, function () {
+          $('oldPassword').value = '';
+          $('newPassword').value = '';
+          $('changePasswordMsg').innerHTML =
+            '<div class="notice ok">تم تحديث كلمة المرور.</div>';
+        });
+      }
+
+      function loadUsers() {
+        runServerNoArgument('listUsers', function (users) {
+          renderUsers(users || []);
+        });
+      }
+
+      function renderUsers(users) {
+        if (!users.length) {
+          $('usersTable').innerHTML =
+            '<div class="notice info">لا يوجد مستخدمون بعد.</div>';
+          return;
+        }
+
+        var html =
+          '<table><thead><tr>' +
+          '<th>اسم المستخدم</th>' +
+          '<th>الاسم</th>' +
+          '<th>الصلاحية</th>' +
+          '<th>الحالة</th>' +
+          '<th>إجراءات</th>' +
+          '</tr></thead><tbody>';
+
+        users.forEach(function (user) {
+          var active = String(user.status).trim() === 'نشط';
+
+          html +=
+            '<tr>' +
+            '<td>' + escapeHtml(user.username) + '</td>' +
+            '<td>' + escapeHtml(user.name) + '</td>' +
+            '<td>' + escapeHtml(roleLabel(user.role)) + '</td>' +
+            '<td>' + escapeHtml(user.status) + '</td>' +
+            '<td>' +
+            '<button class="btn ' + (active ? 'warning' : 'success') +
+            '" data-toggle-user="' + escapeHtml(user.username) +
+            '" data-active="' + (active ? '0' : '1') + '">' +
+            (active ? 'إيقاف' : 'تفعيل') + '</button> ' +
+            '<button class="btn secondary" data-reset-user="' +
+            escapeHtml(user.username) + '">كلمة مرور جديدة</button>' +
+            '</td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        $('usersTable').innerHTML = html;
+
+        document.querySelectorAll('[data-toggle-user]').forEach(function (button) {
+          button.onclick = function () {
+            runServer('setUserActive', {
+              username: button.dataset.toggleUser,
+              active: button.dataset.active === '1'
+            }, function () {
+              loadUsers();
+            });
+          };
+        });
+
+        document.querySelectorAll('[data-reset-user]').forEach(function (button) {
+          button.onclick = function () {
+            var newPassword = prompt(
+              'كلمة المرور الجديدة للمستخدم «' +
+              button.dataset.resetUser +
+              '» (6 أحرف على الأقل):'
+            );
+
+            if (!newPassword) {
+              return;
+            }
+
+            runServer('resetUserPassword', {
+              username: button.dataset.resetUser,
+              newPassword: newPassword
+            }, function () {
+              alert('تم تعيين كلمة مرور جديدة.');
+            });
+          };
+        });
+      }
+
+      function createUser() {
+        var payload = {
+          username: $('newUserUsername').value.trim(),
+          name: $('newUserName').value.trim(),
+          password: $('newUserPassword').value,
+          role: $('newUserRole').value
+        };
+
+        if (!payload.username || !payload.name || !payload.password) {
+          $('createUserMsg').innerHTML =
+            '<div class="notice warn">أكمل جميع الحقول المطلوبة.</div>';
+          return;
+        }
+
+        runServer('createUser', payload, function () {
+          $('newUserUsername').value = '';
+          $('newUserName').value = '';
+          $('newUserPassword').value = '';
+          $('newUserRole').value = 'employee';
+
+          $('createUserMsg').innerHTML =
+            '<div class="notice ok">تم إنشاء الحساب بنجاح.</div>';
+
+          loadUsers();
+        });
+      }
+
       function wireEvents() {
         document.querySelectorAll('.nav button').forEach(function (button) {
           button.addEventListener('click', function () {
@@ -2076,13 +2492,12 @@
         $('scanQrBtn').addEventListener('click', openQrScanner);
         $('closeQrBtn').addEventListener('click', closeQrScanner);
         $('stopQrBtn').addEventListener('click', closeQrScanner);
+        $('startQrLiveBtn').addEventListener('click', startQrCamera);
 
-        // زر التقاط الصورة (الطريقة الموثوقة على الجوال) + الكاميرا المباشرة (للكمبيوتر).
         $('qrPhotoBtn').addEventListener('click', function () {
           $('qrFileInput').click();
         });
         $('qrFileInput').addEventListener('change', handleQrFile);
-        $('startQrLiveBtn').addEventListener('click', startQrCamera);
 
         $('saveActivityBtn').addEventListener('click', saveActivity);
         $('saveToolBtn').addEventListener('click', saveTool);
@@ -2098,21 +2513,49 @@
         $('saveBorrowBtn').addEventListener('click', saveBorrow);
 
         $('saveEmployee').addEventListener('click', function () {
-          localStorage.setItem(
-            'employeeName',
-            $('employeeName').value.trim() || 'موظف'
-          );
-
-          alert('تم حفظ اسم الموظف.');
+          try {
+            localStorage.setItem(
+              'employeeName',
+              $('employeeName').value.trim() || 'موظف'
+            );
+            alert('تم حفظ اسم الموظف.');
+          } catch (error) {
+            alert('تعذر حفظ الاسم على هذا المتصفح.');
+          }
         });
+
+        $('loginBtn').addEventListener('click', doLogin);
+        $('loginPassword').addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') {
+            doLogin();
+          }
+        });
+        $('logoutBtn').addEventListener('click', doLogout);
+        $('changePasswordBtn').addEventListener('click', changeMyPassword);
+        $('createUserBtn').addEventListener('click', createUser);
+        $('refreshUsersBtn').addEventListener('click', loadUsers);
 
         $('employeeName').value = getEmployeeName();
       }
 
       window.addEventListener('load', function () {
         try {
+          loadSession();
           wireEvents();
-          loadAllData();
+
+          if (!isConfigured()) {
+            $('loginConfigMsg').innerHTML =
+              '<div class="notice error"><b>يلزم الإعداد:</b> ضع رابط تطبيق Apps Script ' +
+              'في المتغيّر <code>API_URL</code> بأعلى ملف <code>index.html</code>. راجع دليل النشر.</div>';
+            showLogin();
+            return;
+          }
+
+          if (session && session.token) {
+            showApp();
+          } else {
+            showLogin();
+          }
         } catch (error) {
           alert('حدث خطأ في تشغيل الواجهة: ' + error.message);
           console.error(error);
