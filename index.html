@@ -1518,24 +1518,57 @@
         });
       }
 
+      // يستخرج رقم المتدرب من نص الـ QR.
+      // يدعم: رقمًا صِرفًا، أو بطاقة الطالب الرسمية (Student NO / رقم الطالب).
+      function extractTraineeIdFromQr(text) {
+        var raw = String(text || '').trim();
+
+        // 1) النص رقم فقط.
+        if (/^\d+$/.test(raw)) {
+          return raw;
+        }
+
+        // 2) بطاقة الطالب: استخرج ما بعد "Student NO" أو "رقم الطالب".
+        var labeled = raw.match(/(?:Student\s*NO|رقم\s*الطالب|رقم\s*المتدرب)\s*:?\s*(\d+)/i);
+
+        if (labeled) {
+          return labeled[1];
+        }
+
+        // 3) احتياطي: أول تسلسل أرقام طويل (6 خانات فأكثر).
+        var longNumber = raw.match(/\d{6,}/);
+
+        if (longNumber) {
+          return longNumber[0];
+        }
+
+        return raw;
+      }
+
       // يستقبل نص الكود المقروء (من الكاميرا أو الصورة) ويكمل الاختيار.
       function handleDecodedCode(code) {
         hideModal('qrModal');
         $('qrMessage').innerHTML = '';
 
-        $('modalTraineeSearch').value = code;
+        var traineeId = extractTraineeIdFromQr(code);
+
+        $('modalTraineeSearch').value = traineeId;
 
         searchTrainees();
 
         var exactMatch = data.trainees.find(function (trainee) {
-          return String(trainee['رقم المتدرب'] || '') === code ||
-            String(trainee['رقم الهوية'] || '') === code;
+          return String(trainee['رقم المتدرب'] || '') === traineeId ||
+            String(trainee['رقم الهوية'] || '') === traineeId;
         });
 
         if (exactMatch) {
           selectTrainee(exactMatch['رقم المتدرب']);
         } else {
-          alert('تمت قراءة الكود: ' + code + '. اختر المتدرب من نتائج البحث.');
+          alert(
+            'تمت قراءة البطاقة (رقم المتدرب: ' + traineeId + ')، ' +
+            'لكن لا يوجد متدرب بهذا الرقم في القائمة.\n' +
+            'تأكد من استيراد قائمة المتدربين المحدّثة، أو اختر يدويًا من نتائج البحث.'
+          );
         }
       }
 
