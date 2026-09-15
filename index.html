@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>نظام الأنشطة والعهدة</title>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #173f73;
+      --primary-light: #285a9a;
+      --success: #198754;
+      --warning: #eaa900;
+      --danger: #c9343f;
+      --gray: #6b7280;
+      --background: #f4f7fb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Tahoma, Arial, sans-serif;
+      background: var(--background);
+      color: #24313f;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: #fff;
+      text-align: center;
+      padding: 24px 14px;
+      box-shadow: 0 2px 12px #0003;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: auto;
+      padding: 18px;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .nav button,
+    .btn {
+      border: 0;
+      border-radius: 9px;
+      padding: 11px 16px;
+      font: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .nav button {
+      background: #fff;
+      color: var(--primary);
+      border: 1px solid #d5dfeb;
+    }
+
+    .nav button.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      margin: 3px;
+    }
+
+    .btn:hover,
+    .nav button:hover {
+      transform: translateY(-1px);
+      filter: brightness(0.96);
+    }
+
+    .success {
+      background: var(--success);
+    }
+
+    .warning {
+      background: var(--warning);
+      color: #382a00;
+    }
+
+    .danger {
+      background: var(--danger);
+    }
+
+    .secondary {
+      background: var(--gray);
+    }
+
+    .whatsapp {
+      background: #25D366;
+    }
+
+    .page {
+      display: none;
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 3px 16px #1231;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    h2 {
+      color: var(--primary);
+      margin: 0 0 18px;
+      padding-bottom: 8px;
+      border-bottom: 3px solid var(--primary);
+    }
+
+    h3 {
+      color: var(--primary);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: #fff;
+      padding: 18px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .num {
+      font-size: 30px;
+      font-weight: bold;
+    }
+
+    .notice {
+      padding: 13px;
+      border-radius: 9px;
+      margin: 12px 0;
+    }
+
+    .info {
+      background: #dff2fb;
+      color: #07556e;
+    }
+
+    .ok {
+      background: #e0f4e7;
+      color: #155b32;
+    }
+
+    .warn {
+      background: #fff3d4;
+      color: #765a00;
+    }
+
+    .error {
+      background: #fde2e4;
+      color: #852029;
+    }
+
+    .form-group {
+      margin: 13px 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      text-align: right;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    tr:hover td {
+      background: #f8fbff;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .tool {
+      border: 2px solid #dae3ee;
+      border-radius: 12px;
+      padding: 13px;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .tool:hover,
+    .tool.selected {
+      border-color: var(--success);
+      background: #effbf3;
+    }
+
+    .tool h4 {
+      margin: 0 0 8px;
+      color: var(--primary);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .available {
+      background: #d9f5e3;
+      color: #0f6936;
+    }
+
+    .inuse {
+      background: #fff0c7;
+      color: #775500;
+    }
+
+    .damaged {
+      background: #ffe0e0;
+      color: #a51515;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0008;
+      z-index: 1000;
+      padding: 18px;
+      overflow: auto;
+    }
+
+    .modal.show {
+      display: block;
+    }
+
+    .modal-box {
+      background: #fff;
+      max-width: 690px;
+      margin: 5vh auto;
+      padding: 22px;
+      border-radius: 14px;
+    }
+
+    .close {
+      float: left;
+      border: 0;
+      background: transparent;
+      font-size: 25px;
+      cursor: pointer;
+    }
+
+    .result {
+      padding: 11px;
+      border-bottom: 1px solid #e5e7eb;
+      cursor: pointer;
+    }
+
+    .result:hover {
+      background: #edf6ff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loading {
+      opacity: 0.65;
+      pointer-events: none;
+    }
+
+    #qrReader video {
+      width: 100% !important;
+      border-radius: 10px;
+    }
+
+    #qrReader img {
+      max-width: 100%;
+    }
+
+    @media (max-width: 600px) {
+      .wrap {
+        padding: 10px;
+      }
+
+      .page {
+        padding: 14px;
+      }
+
+      header h1 {
+        font-size: 20px;
+      }
+
+      .nav button {
+        flex: 1 1 44%;
+        padding: 10px 6px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>نظام الأنشطة والعهدة</h1>
+    <p>الكلية التقنية بالمذنب</p>
+  </header>
+
+  <div class="wrap" id="app">
+    <nav class="nav">
+      <button class="active" data-page="dashboard">لوحة التحكم</button>
+      <button data-page="trainees">المتدربون</button>
+      <button data-page="activities">الأنشطة</button>
+      <button data-page="tools">عهدة الأدوات</button>
+      <button data-page="reports">التقارير</button>
+      <button data-page="settings">الإعدادات</button>
+    </nav>
+
+    <section id="dashboard" class="page active">
+      <h2>لوحة التحكم</h2>
+
+      <div class="grid">
+        <div class="stat">
+          عدد المتدربين
+          <div id="statTrainees" class="num">0</div>
+        </div>
+
+        <div class="stat">
+          أنشطة اليوم
+          <div id="statActivities" class="num">0</div>
+        </div>
+
+        <div class="stat">
+          عهد اليوم
+          <div id="statBorrows" class="num">0</div>
+        </div>
+
+        <div class="stat">
+          متأخرة أكثر من ساعة
+          <div id="statDelayed" class="num">0</div>
+        </div>
+      </div>
+
+      <div id="dashboardNotice" class="notice info">
+        جاري تحميل البيانات...
+      </div>
+
+      <h3>إجراءات سريعة</h3>
+
+      <button class="btn" id="quickActivity">تسجيل نشاط جديد</button>
+      <button class="btn success" id="quickBorrow">تسجيل عهدة جديدة</button>
+      <button class="btn warning" id="quickReturn">تسجيل إرجاع</button>
+    </section>
+
+    <section id="trainees" class="page">
+      <h2>بيانات المتدربين</h2>
+
+      <div class="notice info">
+        ارفع ملف المتدربين مرة واحدة فقط. سيتم تخزينه في Google Sheets
+        وسيظهر من جميع الأجهزة.
+      </div>
+
+      <div class="form-group">
+        <label>رفع ملف CSV أو Excel</label>
+        <input id="traineeFile" type="file" accept=".csv,.xlsx,.xls">
+      </div>
+
+      <div class="form-group">
+        <label>طريقة الاستيراد</label>
+        <select id="importMode">
+          <option value="replace">استبدال قائمة المتدربين كاملة</option>
+          <option value="update">إضافة أو تحديث حسب رقم المتدرب</option>
+        </select>
+      </div>
+
+      <button class="btn success" id="importTrainees">
+        رفع واستيراد القائمة
+      </button>
+
+      <div id="traineeMessage"></div>
+
+      <div class="form-group">
+        <label>البحث عن متدرب</label>
+        <input id="traineeSearch" placeholder="الاسم أو رقم المتدرب أو الجوال">
+      </div>
+
+      <div id="traineeTable"></div>
+    </section>
+
+    <section id="activities" class="page">
+      <h2>الأنشطة</h2>
+      <button class="btn" id="addActivity">تسجيل نشاط جديد</button>
+      <button class="btn secondary" id="showActivities">عرض الأنشطة</button>
+      <div id="activityArea"></div>
+    </section>
+
+    <section id="tools" class="page">
+      <h2>عهدة الأدوات</h2>
+      <button class="btn success" id="addBorrow">تسجيل عهدة جديدة</button>
+      <button class="btn warning" id="addReturn">تسجيل إرجاع</button>
+      <button class="btn secondary" id="manageTools">إدارة الأدوات</button>
+      <button class="btn secondary" id="showDelayed">تنبيهات التأخير</button>
+      <button class="btn secondary" id="showTransactions">سجل الحركات</button>
+      <div id="toolsArea"></div>
+    </section>
+
+    <section id="reports" class="page">
+      <h2>التقارير</h2>
+      <button class="btn" id="reportCurrent">العهد الحالية</button>
+      <button class="btn" id="reportDelayed">المتأخرات</button>
+      <button class="btn" id="reportUsage">الأدوات الأكثر طلبًا</button>
+      <button class="btn" id="reportCosts">تكاليف الأنشطة</button>
+      <div id="reportArea"></div>
+    </section>
+
+    <section id="settings" class="page">
+      <h2>الإعدادات</h2>
+
+      <div class="notice ok">
+        البيانات مشتركة ومحفوظة في Google Sheets.
+      </div>
+
+      <div class="form-group">
+        <label>اسم الموظف</label>
+        <input id="employeeName" placeholder="مثال: وكيل شؤون المتدربين">
+      </div>
+
+      <button class="btn" id="saveEmployee">حفظ الاسم</button>
+    </section>
+  </div>
+
+  <div id="traineeModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="traineeModal">×</button>
+
+      <h3>اختيار متدرب</h3>
+
+      <div class="notice info">
+        على الجوال: اضغط الزر بالأسفل ثم «التقاط صورة رمز QR» لفتح الكاميرا.
+        وعلى الكمبيوتر يمكنك استخدام قارئ QR أو إدخال البيانات يدويًا.
+      </div>
+
+      <button class="btn success" id="scanQrBtn">
+        فتح ماسح بطاقة QR
+      </button>
+
+      <div class="form-group">
+        <label>البحث أو إدخال رقم البطاقة</label>
+        <input id="modalTraineeSearch" placeholder="رقم المتدرب أو الاسم">
+      </div>
+
+      <div id="modalResults"></div>
+
+      <div id="selectedTrainee" class="notice ok hidden"></div>
+
+      <button id="confirmTraineeBtn" class="btn success hidden">
+        تأكيد اختيار المتدرب
+      </button>
+    </div>
+  </div>
+
+  <div id="qrModal" class="modal">
+    <div class="modal-box">
+      <button class="close" id="closeQrBtn">×</button>
+
+      <h3>مسح بطاقة المتدرب</h3>
+
+      <div class="notice info">
+        الطريقة الأضمن على الجوال: اضغط «التقاط صورة رمز QR» وستفتح كاميرا الجهاز
+        مباشرة، ثم صوّر رمز QR بوضوح.
+      </div>
+
+      <button class="btn success" id="qrPhotoBtn">
+        📷 التقاط صورة رمز QR (يعمل على كل الأجهزة)
+      </button>
+
+      <!-- capture="environment" يفتح كاميرا الجهاز الخلفية مباشرة على الجوال -->
+      <input id="qrFileInput" type="file" accept="image/*" capture="environment" class="hidden">
+
+      <button class="btn secondary" id="startQrLiveBtn">
+        تشغيل الكاميرا المباشرة (للكمبيوتر)
+      </button>
+
+      <div id="qrReader" style="margin-top: 12px;"></div>
+
+      <div id="qrMessage"></div>
+
+      <button class="btn secondary" id="stopQrBtn">
+        إيقاف الكاميرا
+      </button>
+    </div>
+  </div>
+
+  <div id="activityModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="activityModal">×</button>
+
+      <h3>تسجيل نشاط جديد</h3>
+
+      <div class="form-group">
+        <label>اسم النشاط *</label>
+        <input id="activityName">
+      </div>
+
+      <div class="form-group">
+        <label>نوع النشاط *</label>
+        <select id="activityType">
+          <option>داخلي</option>
+          <option>خارجي</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>نوع المنشط *</label>
+        <select id="activityCategory">
+          <option>ورشة</option>
+          <option>محاضرة</option>
+          <option>مسابقة</option>
+          <option>زيارة</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>التاريخ *</label>
+        <input id="activityDate" type="date">
+      </div>
+
+      <div class="form-group">
+        <label>الوقت *</label>
+        <input id="activityTime" type="time">
+      </div>
+
+      <div class="form-group">
+        <label>المكان *</label>
+        <input id="activityPlace">
+      </div>
+
+      <div class="form-group">
+        <label>المسؤول *</label>
+        <input id="activityOwner">
+      </div>
+
+      <div class="form-group">
+        <label>التكلفة المتوقعة</label>
+        <input id="activityCost" type="number" min="0" step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label>ملاحظات</label>
+        <textarea id="activityNotes"></textarea>
+      </div>
+
+      <button class="btn success" id="saveActivityBtn">حفظ النشاط</button>
+    </div>
+  </div>
+
+  <div id="toolModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="toolModal">×</button>
+
+      <h3>إضافة أداة جديدة</h3>
+
+      <div class="form-group">
+        <label>اسم الأداة *</label>
+        <input id="toolName">
+      </div>
+
+      <div class="form-group">
+        <label>نوع الأداة *</label>
+        <input id="toolType" placeholder="مثال: multimeter">
+      </div>
+
+      <div class="form-group">
+        <label>الرقم التسلسلي</label>
+        <input id="toolSerial">
+      </div>
+
+      <div class="form-group">
+        <label>ملاحظات</label>
+        <textarea id="toolNotes"></textarea>
+      </div>
+
+      <button class="btn success" id="saveToolBtn">حفظ الأداة</button>
+    </div>
+  </div>
+
+  <div id="borrowModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="borrowModal">×</button>
+
+      <h3>تسجيل عهدة جديدة</h3>
+
+      <button class="btn" id="chooseBorrowTrainee">
+        اختيار المتدرب
+      </button>
+
+      <div id="borrowTraineeInfo"></div>
+      <div id="borrowToolList"></div>
+
+      <div class="form-group">
+        <label>النشاط المرتبط (اختياري)</label>
+        <select id="borrowActivity">
+          <option value="">بدون نشاط</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>ملاحظات</label>
+        <textarea id="borrowNotes"></textarea>
+      </div>
+
+      <button class="btn success" id="saveBorrowBtn">
+        تأكيد العهدة
+      </button>
+    </div>
+  </div>
+
+  <div id="returnModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="returnModal">×</button>
+
+      <h3>تسجيل إرجاع أدوات</h3>
+
+      <button class="btn" id="chooseReturnTrainee">
+        اختيار المتدرب
+      </button>
+
+      <div id="returnTraineeInfo"></div>
+      <div id="returnToolList"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var data = {
+        trainees: [],
+        tools: [],
+        activities: [],
+        participants: [],
+        transactions: []
+      };
+
+      var openBorrows = [];
+      var selectedTrainee = null;
+      var selectedTool = null;
+      var traineeMode = '';
+      var qrScanner = null;
+      var qrRunning = false;
+
+      function $(id) {
+        return document.getElementById(id);
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/[&<>'"]/g, function (character) {
+            return {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              "'": '&#39;',
+              '"': '&quot;'
+            }[character];
+          });
+      }
+
+      function today() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function currentTime() {
+        return new Date().toTimeString().slice(0, 5);
+      }
+
+      function getEmployeeName() {
+        return localStorage.getItem('employeeName') || 'موظف';
+      }
+
+      function showModal(id) {
+        $(id).classList.add('show');
+      }
+
+      function hideModal(id) {
+        $(id).classList.remove('show');
+      }
+
+      function setLoading(isLoading) {
+        if (isLoading) {
+          $('app').classList.add('loading');
+        } else {
+          $('app').classList.remove('loading');
+        }
+      }
+
+      function runServer(name, argument, success) {
+        setLoading(true);
+
+        google.script.run
+          .withSuccessHandler(function (result) {
+            setLoading(false);
+
+            if (success) {
+              success(result);
+            }
+          })
+          .withFailureHandler(function (error) {
+            setLoading(false);
+            alert('حدث خطأ: ' + (error.message || error));
+          })[name](argument);
+      }
+
+      function runServerNoArgument(name, success) {
+        setLoading(true);
+
+        google.script.run
+          .withSuccessHandler(function (result) {
+            setLoading(false);
+
+            if (success) {
+              success(result);
+            }
+          })
+          .withFailureHandler(function (error) {
+            setLoading(false);
+            alert('حدث خطأ: ' + (error.message || error));
+          })[name]();
+      }
+
+      function setPage(pageId) {
+        document.querySelectorAll('.page').forEach(function (page) {
+          page.classList.remove('active');
+        });
+
+        document.querySelectorAll('.nav button').forEach(function (button) {
+          button.classList.remove('active');
+        });
+
+        $(pageId).classList.add('active');
+
+        var navButton = document.querySelector(
+          '.nav button[data-page="' + pageId + '"]'
+        );
+
+        if (navButton) {
+          navButton.classList.add('active');
+        }
+
+        if (pageId === 'trainees') {
+          renderTrainees();
+        }
+
+        if (pageId === 'activities') {
+          renderActivities();
+        }
+
+        if (pageId === 'tools') {
+          renderTools();
+        }
+      }
+
+      function loadAllData() {
+        runServerNoArgument('getAppData', function (result) {
+          data = result || data;
+
+          loadOpenBorrows(function () {
+            updateDashboard();
+            renderTrainees();
+            renderActivities();
+            renderTools();
+          });
+        });
+      }
+
+      function loadOpenBorrows(callback) {
+        runServerNoArgument('getOpenBorrows', function (result) {
+          openBorrows = result || [];
+
+          if (callback) {
+            callback();
+          }
+        });
+      }
+
+      function updateDashboard() {
+        var activitiesToday = data.activities.filter(function (activity) {
+          return activity['التاريخ'] === today();
+        }).length;
+
+        var borrowsToday = data.transactions.filter(function (transaction) {
+          return transaction['نوع الحركة'] === 'عهدة' &&
+            String(transaction['تاريخ ووقت العملية']).slice(0, 10) === today();
+        }).length;
+
+        var delayed = openBorrows.filter(function (borrow) {
+          return borrow.delayed;
+        }).length;
+
+        $('statTrainees').textContent = data.trainees.length;
+        $('statActivities').textContent = activitiesToday;
+        $('statBorrows').textContent = borrowsToday;
+        $('statDelayed').textContent = delayed;
+
+        $('dashboardNotice').innerHTML = data.trainees.length
+          ? 'تم تحميل <b>' + data.trainees.length + '</b> متدرب. البيانات محفوظة بشكل مشترك في Google Sheets.'
+          : 'للبدء ارفع ملف المتدربين من قسم «المتدربون».';
+      }
+
+      function parseCsv(text) {
+        var lines = text
+          .replace(/^﻿/, '')
+          .split(/\r?\n/)
+          .filter(function (line) {
+            return line.trim() !== '';
+          });
+
+        if (!lines.length) {
+          return [];
+        }
+
+        function parseLine(line) {
+          var values = [];
+          var current = '';
+          var quoted = false;
+
+          for (var i = 0; i < line.length; i++) {
+            var character = line[i];
+
+            if (character === '"') {
+              if (quoted && line[i + 1] === '"') {
+                current += '"';
+                i++;
+              } else {
+                quoted = !quoted;
+              }
+            } else if (character === ',' && !quoted) {
+              values.push(current);
+              current = '';
+            } else {
+              current += character;
+            }
+          }
+
+          values.push(current);
+          return values;
+        }
+
+        var headers = parseLine(lines[0]).map(function (header) {
+          return header.trim();
+        });
+
+        return lines.slice(1).map(function (line) {
+          var values = parseLine(line);
+          var row = {};
+
+          headers.forEach(function (header, index) {
+            row[header] = values[index] || '';
+          });
+
+          return row;
+        });
+      }
+
+      function normalizeTrainees(rows) {
+        return rows.map(function (row) {
+          return {
+            id: String(row['رقم المتدرب'] || row.TraineeID || '').trim(),
+            name: String(row['اسم المتدرب'] || row.FullName || '').trim(),
+            phone: String(row['رقم الجوال'] || row.Phone || '').trim(),
+            nationalId: String(row['رقم الهوية'] || row.NationalID || '').trim(),
+            email: String(
+              row['البريد الالكتروني'] ||
+              row['البريد الإلكتروني'] ||
+              row.Email ||
+              ''
+            ).trim(),
+            department: String(row['القسم'] || row.Department || '').trim(),
+            program: String(row['البرنامج'] || row.Program || '').trim(),
+            level: String(row['المرحلة'] || row.Level || '').trim(),
+            unit: String(row['الوحدة التدريبية'] || row.TrainingUnit || '').trim(),
+            term: String(row['الفصل التدريبي'] || row.Term || '').trim()
+          };
+        }).filter(function (item) {
+          return item.id && item.name;
+        });
+      }
+
+      function importTrainees() {
+        var file = $('traineeFile').files[0];
+
+        if (!file) {
+          alert('اختر ملف المتدربين أولًا.');
+          return;
+        }
+
+        var reader = new FileReader();
+
+        reader.onload = function (event) {
+          try {
+            var rows;
+
+            if (file.name.toLowerCase().endsWith('.csv')) {
+              rows = parseCsv(event.target.result);
+            } else {
+              if (typeof XLSX === 'undefined') {
+                alert('تعذر تحميل مكتبة Excel. استخدم CSV أو تحقق من الإنترنت.');
+                return;
+              }
+
+              var workbook = XLSX.read(event.target.result, {
+                type: 'array'
+              });
+
+              rows = XLSX.utils.sheet_to_json(
+                workbook.Sheets[workbook.SheetNames[0]],
+                { defval: '' }
+              );
+            }
+
+            var trainees = normalizeTrainees(rows);
+
+            if (!trainees.length) {
+              alert('لم يتم العثور على بيانات متدربين صالحة.');
+              return;
+            }
+
+            runServer(
+              'importTrainees',
+              trainees,
+              function (result) {
+                $('traineeMessage').innerHTML =
+                  '<div class="notice ok">تم استيراد القائمة بنجاح. العدد: ' +
+                  result.count +
+                  '، المضاف: ' +
+                  result.added +
+                  '، المحدّث: ' +
+                  result.updated +
+                  '.</div>';
+
+                loadAllData();
+              }
+            );
+          } catch (error) {
+            alert('تعذر قراءة الملف: ' + error.message);
+          }
+        };
+
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          reader.readAsText(file, 'UTF-8');
+        } else {
+          reader.readAsArrayBuffer(file);
+        }
+      }
+
+      function renderTrainees() {
+        var query = ($('traineeSearch').value || '').trim().toLowerCase();
+
+        var trainees = query.length < 2
+          ? data.trainees
+          : data.trainees.filter(function (trainee) {
+              return String(trainee['اسم المتدرب'] || '').toLowerCase().indexOf(query) > -1 ||
+                String(trainee['رقم المتدرب'] || '').indexOf(query) > -1 ||
+                String(trainee['رقم الجوال'] || '').indexOf(query) > -1;
+            });
+
+        trainees = trainees.slice(0, 100);
+
+        if (!data.trainees.length) {
+          $('traineeTable').innerHTML =
+            '<div class="notice info">لا توجد بيانات متدربين بعد.</div>';
+          return;
+        }
+
+        var html =
+          '<h3>المتدربون (' +
+          (query ? trainees.length : data.trainees.length) +
+          ')</h3>' +
+          '<table><thead><tr>' +
+          '<th>رقم المتدرب</th>' +
+          '<th>الاسم</th>' +
+          '<th>الجوال</th>' +
+          '<th>القسم</th>' +
+          '</tr></thead><tbody>';
+
+        trainees.forEach(function (trainee) {
+          html +=
+            '<tr>' +
+            '<td>' + escapeHtml(trainee['رقم المتدرب']) + '</td>' +
+            '<td>' + escapeHtml(trainee['اسم المتدرب']) + '</td>' +
+            '<td>' + escapeHtml(trainee['رقم الجوال'] || '-') + '</td>' +
+            '<td>' + escapeHtml(trainee['القسم'] || '-') + '</td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        $('traineeTable').innerHTML = html;
+      }
+
+      function openTraineePicker(mode) {
+        if (!data.trainees.length) {
+          alert('ارفع قائمة المتدربين أولًا.');
+          return;
+        }
+
+        traineeMode = mode;
+        selectedTrainee = null;
+
+        $('modalTraineeSearch').value = '';
+        $('modalResults').innerHTML = '';
+        $('selectedTrainee').classList.add('hidden');
+        $('confirmTraineeBtn').classList.add('hidden');
+
+        showModal('traineeModal');
+
+        setTimeout(function () {
+          $('modalTraineeSearch').focus();
+        }, 100);
+      }
+
+      function searchTrainees() {
+        var query = $('modalTraineeSearch').value.trim().toLowerCase();
+
+        if (!query) {
+          $('modalResults').innerHTML =
+            '<div class="notice info">اكتب الاسم أو رقم المتدرب، أو استخدم كاميرا الجوال لمسح البطاقة.</div>';
+          return;
+        }
+
+        var results = data.trainees.filter(function (trainee) {
+          return String(trainee['رقم المتدرب'] || '').indexOf(query) > -1 ||
+            String(trainee['اسم المتدرب'] || '').toLowerCase().indexOf(query) > -1 ||
+            String(trainee['رقم الهوية'] || '').indexOf(query) > -1;
+        }).slice(0, 30);
+
+        if (!results.length) {
+          $('modalResults').innerHTML =
+            '<div class="notice warn">لا توجد نتائج.</div>';
+          return;
+        }
+
+        var html = '';
+
+        results.forEach(function (trainee) {
+          html +=
+            '<div class="result" data-select-trainee="' +
+            escapeHtml(trainee['رقم المتدرب']) +
+            '">' +
+            '<b>' + escapeHtml(trainee['اسم المتدرب']) + '</b><br>' +
+            '<small>رقم المتدرب: ' +
+            escapeHtml(trainee['رقم المتدرب']) +
+            ' | الجوال: ' +
+            escapeHtml(trainee['رقم الجوال'] || '-') +
+            '</small></div>';
+        });
+
+        $('modalResults').innerHTML = html;
+
+        document.querySelectorAll('[data-select-trainee]').forEach(function (element) {
+          element.onclick = function () {
+            selectTrainee(element.dataset.selectTrainee);
+          };
+        });
+      }
+
+      function selectTrainee(id) {
+        selectedTrainee = data.trainees.find(function (trainee) {
+          return String(trainee['رقم المتدرب']) === String(id);
+        });
+
+        if (!selectedTrainee) {
+          return;
+        }
+
+        $('selectedTrainee').classList.remove('hidden');
+
+        $('selectedTrainee').innerHTML =
+          '<b>المتدرب المحدد:</b><br>' +
+          'الاسم: ' + escapeHtml(selectedTrainee['اسم المتدرب']) + '<br>' +
+          'رقم المتدرب: ' + escapeHtml(selectedTrainee['رقم المتدرب']) + '<br>' +
+          'رقم الجوال: ' + escapeHtml(selectedTrainee['رقم الجوال'] || '-') + '<br>' +
+          'القسم: ' + escapeHtml(selectedTrainee['القسم'] || '-');
+
+        $('confirmTraineeBtn').classList.remove('hidden');
+      }
+
+      function confirmTraineeSelection() {
+        if (!selectedTrainee) {
+          return;
+        }
+
+        if (traineeMode === 'borrow') {
+          $('borrowTraineeInfo').innerHTML =
+            '<div class="notice ok">' +
+            '<b>' + escapeHtml(selectedTrainee['اسم المتدرب']) + '</b><br>' +
+            'رقم المتدرب: ' +
+            escapeHtml(selectedTrainee['رقم المتدرب']) +
+            '<br>رقم الجوال: ' +
+            escapeHtml(selectedTrainee['رقم الجوال'] || '-') +
+            '</div>';
+
+          renderAvailableTools();
+        }
+
+        if (traineeMode === 'return') {
+          $('returnTraineeInfo').innerHTML =
+            '<div class="notice ok">' +
+            '<b>' + escapeHtml(selectedTrainee['اسم المتدرب']) + '</b><br>' +
+            'رقم المتدرب: ' +
+            escapeHtml(selectedTrainee['رقم المتدرب']) +
+            '<br>رقم الجوال: ' +
+            escapeHtml(selectedTrainee['رقم الجوال'] || '-') +
+            '</div>';
+
+          renderReturnTools();
+        }
+
+        if (traineeMode === 'participant') {
+          saveParticipant();
+        }
+
+        hideModal('traineeModal');
+      }
+
+      function openQrScanner() {
+        if (typeof Html5Qrcode === 'undefined') {
+          alert('تعذر تحميل قارئ QR. تحقق من الإنترنت ثم حدّث الصفحة.');
+          return;
+        }
+
+        showModal('qrModal');
+
+        $('qrMessage').innerHTML =
+          '<div class="notice info">إن لم تفتح الكاميرا المباشرة، استخدم زر «التقاط صورة رمز QR» بالأعلى.</div>';
+
+        // نحاول تشغيل الكاميرا المباشرة (تعمل على الكمبيوتر غالبًا).
+        // على الجوال قد تمنعها قيود Google Apps Script، وحينها يوجّه المستخدم لزر التقاط الصورة.
+        setTimeout(function () {
+          startQrCamera();
+        }, 250);
+      }
+
+      function startQrCamera() {
+        stopQrCamera(function () {
+          qrScanner = new Html5Qrcode('qrReader');
+
+          var config = {
+            fps: 10,
+            qrbox: function (width, height) {
+              var size = Math.min(width, height, 260);
+
+              return {
+                width: size,
+                height: size
+              };
+            }
+          };
+
+          function onStarted() {
+            qrRunning = true;
+
+            $('qrMessage').innerHTML =
+              '<div class="notice ok">الكاميرا تعمل. وجّهها نحو رمز QR.</div>';
+          }
+
+          function onStartFailed(error) {
+            qrRunning = false;
+
+            try {
+              qrScanner.clear();
+            } catch (ignore) {}
+
+            qrScanner = null;
+
+            $('qrMessage').innerHTML =
+              '<div class="notice error">' +
+              'تعذّر تشغيل الكاميرا المباشرة على هذا الجهاز. ' +
+              'استخدم زر <b>«📷 التقاط صورة رمز QR»</b> بالأعلى — يعمل على جميع الجوالات.' +
+              '<br><small>السبب التقني: ' +
+              escapeHtml(error && error.message ? error.message : error) +
+              '</small></div>';
+          }
+
+          // نستخدم facingMode: 'environment' كتلميح (بدون exact) لتفادي خطأ OverconstrainedError.
+          qrScanner.start(
+            { facingMode: 'environment' },
+            config,
+            onQrRead,
+            function () {}
+          ).then(onStarted).catch(onStartFailed);
+        });
+      }
+
+      // يفتح كاميرا الجهاز لالتقاط صورة، ثم يفك رمز QR منها.
+      // هذه الطريقة لا تعتمد على getUserMedia، فتعمل داخل إطار Google Apps Script على الجوال.
+      function handleQrFile(event) {
+        var file = event.target.files && event.target.files[0];
+
+        // تفريغ القيمة للسماح بإعادة اختيار نفس الصورة لاحقًا.
+        event.target.value = '';
+
+        if (!file) {
+          return;
+        }
+
+        $('qrMessage').innerHTML =
+          '<div class="notice info">جاري قراءة رمز QR من الصورة...</div>';
+
+        stopQrCamera(function () {
+          var scanner = new Html5Qrcode('qrReader');
+          qrScanner = scanner;
+
+          scanner.scanFile(file, true)
+            .then(function (decodedText) {
+              try {
+                scanner.clear();
+              } catch (ignore) {}
+
+              qrScanner = null;
+
+              handleDecodedCode(String(decodedText || '').trim());
+            })
+            .catch(function (error) {
+              try {
+                scanner.clear();
+              } catch (ignore) {}
+
+              qrScanner = null;
+
+              $('qrMessage').innerHTML =
+                '<div class="notice error">' +
+                'تعذّرت قراءة رمز QR من الصورة. حاول التقاط صورة أوضح وأقرب للرمز مع إضاءة جيدة.' +
+                '<br><small>' +
+                escapeHtml(error && error.message ? error.message : error) +
+                '</small></div>';
+            });
+        });
+      }
+
+      // يستقبل نص الكود المقروء (سواء من الكاميرا المباشرة أو من الصورة) ويكمل الاختيار.
+      function handleDecodedCode(code) {
+        hideModal('qrModal');
+        $('qrMessage').innerHTML = '';
+
+        $('modalTraineeSearch').value = code;
+
+        searchTrainees();
+
+        var exactMatch = data.trainees.find(function (trainee) {
+          return String(trainee['رقم المتدرب'] || '') === code ||
+            String(trainee['رقم الهوية'] || '') === code;
+        });
+
+        if (exactMatch) {
+          selectTrainee(exactMatch['رقم المتدرب']);
+        } else {
+          alert('تمت قراءة الكود: ' + code + '. اختر المتدرب من نتائج البحث.');
+        }
+      }
+
+      function onQrRead(decodedText) {
+        if (!qrRunning) {
+          return;
+        }
+
+        qrRunning = false;
+
+        var code = String(decodedText || '').trim();
+
+        stopQrCamera(function () {
+          handleDecodedCode(code);
+        });
+      }
+
+      function stopQrCamera(callback) {
+        if (qrScanner && qrRunning) {
+          qrScanner.stop()
+            .then(function () {
+              qrRunning = false;
+
+              try {
+                qrScanner.clear();
+              } catch (ignore) {}
+
+              qrScanner = null;
+
+              if (callback) {
+                callback();
+              }
+            })
+            .catch(function () {
+              qrRunning = false;
+              qrScanner = null;
+
+              if (callback) {
+                callback();
+              }
+            });
+        } else {
+          if (qrScanner) {
+            try {
+              qrScanner.clear();
+            } catch (ignore) {}
+          }
+
+          qrScanner = null;
+
+          if (callback) {
+            callback();
+          }
+        }
+      }
+
+      function closeQrScanner() {
+        stopQrCamera(function () {
+          hideModal('qrModal');
+          $('qrMessage').innerHTML = '';
+        });
+      }
+
+      function openActivityForm() {
+        $('activityName').value = '';
+        $('activityDate').value = today();
+        $('activityTime').value = currentTime();
+        $('activityPlace').value = '';
+        $('activityOwner').value = '';
+        $('activityCost').value = '';
+        $('activityNotes').value = '';
+
+        showModal('activityModal');
+      }
+
+      function saveActivity() {
+        var item = {
+          name: $('activityName').value.trim(),
+          type: $('activityType').value,
+          category: $('activityCategory').value,
+          date: $('activityDate').value,
+          time: $('activityTime').value,
+          place: $('activityPlace').value.trim(),
+          owner: $('activityOwner').value.trim(),
+          estimatedCost: $('activityCost').value,
+          notes: $('activityNotes').value.trim()
+        };
+
+        runServer('addActivity', item, function () {
+          hideModal('activityModal');
+          loadAllData();
+          setPage('activities');
+
+          alert('تم حفظ النشاط بنجاح.');
+        });
+      }
+
+      function renderActivities() {
+        var html = '<h3>الأنشطة المسجلة</h3>';
+
+        if (!data.activities.length) {
+          html += '<div class="notice info">لا توجد أنشطة مسجلة.</div>';
+        } else {
+          html +=
+            '<table><thead><tr>' +
+            '<th>النشاط</th>' +
+            '<th>النوع</th>' +
+            '<th>التاريخ</th>' +
+            '<th>المكان</th>' +
+            '<th>التكلفة</th>' +
+            '<th>المشاركون</th>' +
+            '</tr></thead><tbody>';
+
+          data.activities.slice().reverse().forEach(function (activity) {
+            var participantsCount = data.participants.filter(function (participant) {
+              return participant['رقم النشاط'] === activity['رقم النشاط'] &&
+                participant['حالة السجل'] !== 'محذوف';
+            }).length;
+
+            html +=
+              '<tr>' +
+              '<td>' + escapeHtml(activity['اسم النشاط']) + '</td>' +
+              '<td>' + escapeHtml(activity['نوع النشاط']) + '</td>' +
+              '<td>' + escapeHtml(activity['التاريخ']) + ' ' +
+              escapeHtml(activity['الوقت']) + '</td>' +
+              '<td>' + escapeHtml(activity['المكان']) + '</td>' +
+              '<td>' + escapeHtml(activity['التكلفة المتوقعة']) + ' ريال</td>' +
+              '<td><button class="btn success" data-show-participants="' +
+              escapeHtml(activity['رقم النشاط']) +
+              '">المشاركون (' + participantsCount + ')</button></td>' +
+              '</tr>';
+          });
+
+          html += '</tbody></table>';
+        }
+
+        $('activityArea').innerHTML = html;
+
+        document.querySelectorAll('[data-show-participants]').forEach(function (button) {
+          button.onclick = function () {
+            showParticipants(button.dataset.showParticipants);
+          };
+        });
+      }
+
+      function showParticipants(activityId) {
+        window.currentActivityId = activityId;
+
+        var participants = data.participants.filter(function (participant) {
+          return participant['رقم النشاط'] === activityId &&
+            participant['حالة السجل'] !== 'محذوف';
+        });
+
+        var html =
+          '<h3>مشاركو النشاط</h3>' +
+          '<button class="btn" id="addParticipantButton">إضافة متدرب</button>' +
+          '<table><thead><tr>' +
+          '<th>الاسم</th>' +
+          '<th>رقم المتدرب</th>' +
+          '<th>وقت التسجيل</th>' +
+          '<th>طريقة الإدخال</th>' +
+          '</tr></thead><tbody>';
+
+        participants.forEach(function (participant) {
+          html +=
+            '<tr>' +
+            '<td>' + escapeHtml(participant['اسم المتدرب']) + '</td>' +
+            '<td>' + escapeHtml(participant['رقم المتدرب']) + '</td>' +
+            '<td>' + escapeHtml(participant['وقت التسجيل']) + '</td>' +
+            '<td>' + escapeHtml(participant['طريقة الإدخال']) + '</td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        $('activityArea').innerHTML = html;
+
+        $('addParticipantButton').onclick = function () {
+          openTraineePicker('participant');
+        };
+      }
+
+      function saveParticipant() {
+        var item = {
+          activityId: window.currentActivityId,
+          traineeId: selectedTrainee['رقم المتدرب'],
+          traineeName: selectedTrainee['اسم المتدرب'],
+          source: 'QR'
+        };
+
+        runServer('addParticipant', item, function () {
+          loadAllData();
+
+          setTimeout(function () {
+            showParticipants(window.currentActivityId);
+          }, 600);
+        });
+      }
+
+      function renderTools() {
+        var html =
+          '<h3>إدارة الأدوات</h3>' +
+          '<button class="btn success" id="openToolModalButton">إضافة أداة جديدة</button>';
+
+        if (!data.tools.length) {
+          html += '<div class="notice info">لا توجد أدوات مضافة.</div>';
+        } else {
+          html += '<div class="tool-grid">';
+
+          data.tools.forEach(function (tool) {
+            var status = tool['الحالة الحالية'];
+
+            var statusClass = status === 'متاحة'
+              ? 'available'
+              : status === 'في عهدة'
+                ? 'inuse'
+                : 'damaged';
+
+            html +=
+              '<div class="tool">' +
+              '<h4>' + escapeHtml(tool['اسم الأداة']) + '</h4>' +
+              '<p>رقم الأداة: ' + escapeHtml(tool['رقم الأداة']) + '</p>' +
+              '<p>النوع: ' + escapeHtml(tool['نوع الأداة']) + '</p>' +
+              '<span class="badge ' + statusClass + '">' +
+              escapeHtml(status) +
+              '</span>' +
+              '<p>آخر حالة: ' + escapeHtml(tool['آخر حالة']) + '</p>' +
+              '</div>';
+          });
+
+          html += '</div>';
+        }
+
+        $('toolsArea').innerHTML = html;
+
+        $('openToolModalButton').onclick = function () {
+          $('toolName').value = '';
+          $('toolType').value = '';
+          $('toolSerial').value = '';
+          $('toolNotes').value = '';
+
+          showModal('toolModal');
+        };
+      }
+
+      function saveTool() {
+        var item = {
+          name: $('toolName').value.trim(),
+          type: $('toolType').value.trim(),
+          serial: $('toolSerial').value.trim(),
+          notes: $('toolNotes').value.trim()
+        };
+
+        runServer('addTool', item, function () {
+          hideModal('toolModal');
+          loadAllData();
+
+          alert('تمت إضافة الأداة.');
+        });
+      }
+
+      function openBorrowForm() {
+        if (!data.tools.length) {
+          setPage('tools');
+          renderTools();
+
+          alert('أضف أداة واحدة على الأقل قبل تسجيل العهدة.');
+          return;
+        }
+
+        selectedTrainee = null;
+        selectedTool = null;
+
+        $('borrowTraineeInfo').innerHTML = '';
+        $('borrowToolList').innerHTML =
+          '<div class="notice info">اختر المتدرب أولًا.</div>';
+
+        $('borrowNotes').value = '';
+
+        var options =
+          '<option value="">بدون نشاط</option>';
+
+        data.activities.forEach(function (activity) {
+          options +=
+            '<option value="' +
+            escapeHtml(activity['رقم النشاط']) +
+            '">' +
+            escapeHtml(activity['اسم النشاط']) +
+            ' - ' +
+            escapeHtml(activity['التاريخ']) +
+            '</option>';
+        });
+
+        $('borrowActivity').innerHTML = options;
+
+        showModal('borrowModal');
+      }
+
+      function renderAvailableTools() {
+        var availableTools = data.tools.filter(function (tool) {
+          return tool['الحالة الحالية'] === 'متاحة';
+        });
+
+        if (!availableTools.length) {
+          $('borrowToolList').innerHTML =
+            '<div class="notice warn">لا توجد أدوات متاحة الآن.</div>';
+          return;
+        }
+
+        var html =
+          '<h4>اختر الأداة المطلوبة</h4>' +
+          '<div class="tool-grid">';
+
+        availableTools.forEach(function (tool) {
+          var selected = selectedTool &&
+            String(selectedTool['رقم الأداة']) ===
+            String(tool['رقم الأداة']);
+
+          html +=
+            '<div class="tool ' +
+            (selected ? 'selected' : '') +
+            '" data-select-tool="' +
+            escapeHtml(tool['رقم الأداة']) +
+            '">' +
+            '<h4>' + escapeHtml(tool['اسم الأداة']) + '</h4>' +
+            '<p>النوع: ' + escapeHtml(tool['نوع الأداة']) + '</p>' +
+            '<p>آخر حالة: ' + escapeHtml(tool['آخر حالة']) + '</p>' +
+            '</div>';
+        });
+
+        html += '</div>';
+
+        $('borrowToolList').innerHTML = html;
+
+        document.querySelectorAll('[data-select-tool]').forEach(function (element) {
+          element.onclick = function () {
+            selectedTool = data.tools.find(function (tool) {
+              return String(tool['رقم الأداة']) ===
+                String(element.dataset.selectTool);
+            });
+
+            renderAvailableTools();
+          };
+        });
+      }
+
+      function saveBorrow() {
+        if (!selectedTrainee || !selectedTool) {
+          alert('اختر المتدرب والأداة أولًا.');
+          return;
+        }
+
+        var item = {
+          traineeId: selectedTrainee['رقم المتدرب'],
+          traineeName: selectedTrainee['اسم المتدرب'],
+          phone: selectedTrainee['رقم الجوال'],
+          toolId: selectedTool['رقم الأداة'],
+          toolName: selectedTool['اسم الأداة'],
+          toolType: selectedTool['نوع الأداة'],
+          activityId: $('borrowActivity').value,
+          notes: $('borrowNotes').value.trim(),
+          employeeName: getEmployeeName(),
+          source: 'QR'
+        };
+
+        runServer('createBorrow', item, function (result) {
+          hideModal('borrowModal');
+          loadAllData();
+
+          alert('تم تسجيل العهدة في: ' + result.dateTime);
+        });
+      }
+
+      function openReturnForm() {
+        selectedTrainee = null;
+
+        $('returnTraineeInfo').innerHTML = '';
+        $('returnToolList').innerHTML =
+          '<div class="notice info">اختر المتدرب أولًا.</div>';
+
+        showModal('returnModal');
+      }
+
+      function renderReturnTools() {
+        var borrows = openBorrows.filter(function (borrow) {
+          return String(borrow.traineeId) ===
+            String(selectedTrainee['رقم المتدرب']);
+        });
+
+        var html = '<h4>الأدوات في عهدة المتدرب</h4>';
+
+        if (!borrows.length) {
+          html +=
+            '<div class="notice info">لا توجد أدوات في عهدة هذا المتدرب.</div>';
+        } else {
+          html +=
+            '<table><thead><tr>' +
+            '<th>الأداة</th>' +
+            '<th>وقت العهدة</th>' +
+            '<th>إرجاع</th>' +
+            '</tr></thead><tbody>';
+
+          borrows.forEach(function (borrow) {
+            html +=
+              '<tr>' +
+              '<td>' + escapeHtml(borrow.toolName) + '</td>' +
+              '<td>' + escapeHtml(borrow.dateTime) + '</td>' +
+              '<td><button class="btn warning" data-return-borrow="' +
+              escapeHtml(borrow.id) +
+              '">إرجاع وتقييم</button></td>' +
+              '</tr>';
+          });
+
+          html += '</tbody></table>';
+        }
+
+        $('returnToolList').innerHTML = html;
+
+        document.querySelectorAll('[data-return-borrow]').forEach(function (button) {
+          button.onclick = function () {
+            var borrow = openBorrows.find(function (item) {
+              return String(item.id) ===
+                String(button.dataset.returnBorrow);
+            });
+
+            if (!borrow) {
+              alert('تعذر العثور على حركة العهدة.');
+              return;
+            }
+
+            var condition = prompt(
+              'حالة الأداة عند الإرجاع: جيدة / تحتاج صيانة / تالفة',
+              'جيدة'
+            );
+
+            if (!condition) {
+              return;
+            }
+
+            var notes = prompt('ملاحظات عن الحالة (اختياري):', '') || '';
+
+            runServer('createReturn', {
+              borrowId: borrow.id,
+              toolId: borrow.toolId,
+              condition: condition,
+              notes: notes,
+              employeeName: getEmployeeName(),
+              source: 'QR'
+            }, function (result) {
+              hideModal('returnModal');
+              loadAllData();
+
+              alert('تم تسجيل الإرجاع في: ' + result.dateTime);
+            });
+          };
+        });
+      }
+
+      function cleanSaudiPhone(phone) {
+        var number = String(phone || '').replace(/\D/g, '');
+
+        if (!number) {
+          return '';
+        }
+
+        if (number.indexOf('0') === 0) {
+          number = '966' + number.slice(1);
+        }
+
+        if (number.indexOf('966') !== 0) {
+          number = '966' + number;
+        }
+
+        return number;
+      }
+
+      function createWhatsappLink(phone, message) {
+        var number = cleanSaudiPhone(phone);
+
+        if (!number) {
+          return 'لا يوجد رقم';
+        }
+
+        return (
+          '<a class="btn whatsapp" target="_blank" href="https://wa.me/' +
+          number +
+          '?text=' +
+          encodeURIComponent(message) +
+          '">واتساب</a>'
+        );
+      }
+
+      function showDelayedTools() {
+        loadOpenBorrows(function () {
+          var delayed = openBorrows.filter(function (borrow) {
+            return borrow.delayed;
+          });
+
+          var html = '<h3>تنبيهات التأخير: أكثر من ساعة</h3>';
+
+          if (!delayed.length) {
+            html +=
+              '<div class="notice ok">لا توجد أدوات متأخرة حاليًا.</div>';
+          } else {
+            html +=
+              '<table><thead><tr>' +
+              '<th>المتدرب</th>' +
+              '<th>رقم الجوال</th>' +
+              '<th>الأداة</th>' +
+              '<th>وقت العهدة</th>' +
+              '<th>المدة</th>' +
+              '<th>التواصل</th>' +
+              '</tr></thead><tbody>';
+
+            delayed.forEach(function (borrow) {
+              var message =
+                'السلام عليكم ' + borrow.traineeName + '،\n' +
+                'من الكلية التقنية بالمذنب.\n' +
+                'نود تذكيركم بأن الأداة «' + borrow.toolName +
+                '» في عهدتكم منذ ' +
+                Math.floor(borrow.elapsedMinutes / 60) +
+                ' ساعة. يرجى المبادرة بالإرجاع.';
+
+              html +=
+                '<tr>' +
+                '<td>' + escapeHtml(borrow.traineeName) + '</td>' +
+                '<td>' + escapeHtml(borrow.phone || '-') + '</td>' +
+                '<td>' + escapeHtml(borrow.toolName) + '</td>' +
+                '<td>' + escapeHtml(borrow.dateTime) + '</td>' +
+                '<td>' + borrow.elapsedMinutes + ' دقيقة</td>' +
+                '<td>' + createWhatsappLink(borrow.phone, message) + '</td>' +
+                '</tr>';
+            });
+
+            html += '</tbody></table>';
+          }
+
+          $('toolsArea').innerHTML = html;
+        });
+      }
+
+      function showTransactions() {
+        var html =
+          '<h3>سجل الحركات</h3>' +
+          '<table><thead><tr>' +
+          '<th>العملية</th>' +
+          '<th>المتدرب</th>' +
+          '<th>الأداة</th>' +
+          '<th>التاريخ والوقت</th>' +
+          '<th>الحالة</th>' +
+          '<th>ملاحظات</th>' +
+          '</tr></thead><tbody>';
+
+        data.transactions.slice().reverse().forEach(function (transaction) {
+          html +=
+            '<tr>' +
+            '<td>' + escapeHtml(transaction['نوع الحركة']) + '</td>' +
+            '<td>' + escapeHtml(transaction['اسم المتدرب']) + '</td>' +
+            '<td>' + escapeHtml(transaction['اسم الأداة']) + '</td>' +
+            '<td>' + escapeHtml(transaction['تاريخ ووقت العملية']) + '</td>' +
+            '<td>' +
+            escapeHtml(transaction['حالة الأداة عند الإرجاع'] || '-') +
+            '</td>' +
+            '<td>' + escapeHtml(transaction['ملاحظات'] || '-') + '</td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        $('toolsArea').innerHTML = html;
+      }
+
+      function reportCurrent() {
+        loadOpenBorrows(function () {
+          var html = '<h3>تقرير العهد الحالية</h3>';
+
+          if (!openBorrows.length) {
+            html +=
+              '<div class="notice ok">لا توجد عهد مفتوحة حاليًا.</div>';
+          } else {
+            html +=
+              '<table><thead><tr>' +
+              '<th>المتدرب</th>' +
+              '<th>رقم الجوال</th>' +
+              '<th>الأداة</th>' +
+              '<th>وقت العهدة</th>' +
+              '<th>واتساب</th>' +
+              '</tr></thead><tbody>';
+
+            openBorrows.forEach(function (borrow) {
+              var message =
+                'السلام عليكم ' + borrow.traineeName + '،\n' +
+                'لديكم الأداة «' + borrow.toolName +
+                '» في عهدتكم. يرجى الإرجاع عند الانتهاء.';
+
+              html +=
+                '<tr>' +
+                '<td>' + escapeHtml(borrow.traineeName) + '</td>' +
+                '<td>' + escapeHtml(borrow.phone || '-') + '</td>' +
+                '<td>' + escapeHtml(borrow.toolName) + '</td>' +
+                '<td>' + escapeHtml(borrow.dateTime) + '</td>' +
+                '<td>' + createWhatsappLink(borrow.phone, message) + '</td>' +
+                '</tr>';
+            });
+
+            html += '</tbody></table>';
+          }
+
+          $('reportArea').innerHTML = html;
+        });
+      }
+
+      function reportDelayed() {
+        loadOpenBorrows(function () {
+          var delayed = openBorrows.filter(function (borrow) {
+            return borrow.delayed;
+          });
+
+          $('reportArea').innerHTML = delayed.length
+            ? '<div class="notice warn">يوجد ' +
+              delayed.length +
+              ' عهدة متأخرة. افتح قسم عهدة الأدوات ثم تنبيهات التأخير للتواصل عبر واتساب.</div>'
+            : '<div class="notice ok">لا توجد متأخرات حاليًا.</div>';
+        });
+      }
+
+      function reportUsage() {
+        var counters = {};
+
+        data.transactions
+          .filter(function (transaction) {
+            return transaction['نوع الحركة'] === 'عهدة';
+          })
+          .forEach(function (transaction) {
+            var toolName = transaction['اسم الأداة'];
+
+            counters[toolName] = (counters[toolName] || 0) + 1;
+          });
+
+        var items = Object.keys(counters)
+          .map(function (name) {
+            return {
+              name: name,
+              count: counters[name]
+            };
+          })
+          .sort(function (a, b) {
+            return b.count - a.count;
+          });
+
+        if (!items.length) {
+          $('reportArea').innerHTML =
+            '<div class="notice info">لا توجد حركات عهدة بعد.</div>';
+          return;
+        }
+
+        var html =
+          '<h3>الأدوات الأكثر طلبًا</h3>' +
+          '<table><thead><tr>' +
+          '<th>الأداة</th>' +
+          '<th>عدد مرات العهدة</th>' +
+          '</tr></thead><tbody>';
+
+        items.forEach(function (item) {
+          html +=
+            '<tr>' +
+            '<td>' + escapeHtml(item.name) + '</td>' +
+            '<td>' + item.count + '</td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        $('reportArea').innerHTML = html;
+      }
+
+      function reportCosts() {
+        if (!data.activities.length) {
+          $('reportArea').innerHTML =
+            '<div class="notice info">لا توجد أنشطة مسجلة.</div>';
+          return;
+        }
+
+        var html =
+          '<h3>تكاليف الأنشطة</h3>' +
+          '<table><thead><tr>' +
+          '<th>النشاط</th>' +
+          '<th>التاريخ</th>' +
+          '<th>المسؤول</th>' +
+          '<th>التكلفة المتوقعة</th>' +
+          '<th>ملاحظات</th>' +
+          '</tr></thead><tbody>';
+
+        data.activities.forEach(function (activity) {
+          html +=
+            '<tr>' +
+            '<td>' + escapeHtml(activity['اسم النشاط']) + '</td>' +
+            '<td>' + escapeHtml(activity['التاريخ']) + '</td>' +
+            '<td>' + escapeHtml(activity['المسؤول']) + '</td>' +
+            '<td>' +
+            escapeHtml(activity['التكلفة المتوقعة']) +
+            ' ريال</td>' +
+            '<td>' + escapeHtml(activity['ملاحظات'] || '-') + '</td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+
+        $('reportArea').innerHTML = html;
+      }
+
+      function wireEvents() {
+        document.querySelectorAll('.nav button').forEach(function (button) {
+          button.addEventListener('click', function () {
+            setPage(button.dataset.page);
+          });
+        });
+
+        document.querySelectorAll('[data-close]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            hideModal(button.dataset.close);
+          });
+        });
+
+        $('quickActivity').addEventListener('click', openActivityForm);
+        $('quickBorrow').addEventListener('click', openBorrowForm);
+        $('quickReturn').addEventListener('click', openReturnForm);
+
+        $('addActivity').addEventListener('click', openActivityForm);
+        $('showActivities').addEventListener('click', renderActivities);
+
+        $('addBorrow').addEventListener('click', openBorrowForm);
+        $('addReturn').addEventListener('click', openReturnForm);
+        $('manageTools').addEventListener('click', renderTools);
+        $('showDelayed').addEventListener('click', showDelayedTools);
+        $('showTransactions').addEventListener('click', showTransactions);
+
+        $('reportCurrent').addEventListener('click', reportCurrent);
+        $('reportDelayed').addEventListener('click', reportDelayed);
+        $('reportUsage').addEventListener('click', reportUsage);
+        $('reportCosts').addEventListener('click', reportCosts);
+
+        $('importTrainees').addEventListener('click', importTrainees);
+        $('traineeSearch').addEventListener('input', renderTrainees);
+
+        $('modalTraineeSearch').addEventListener('input', searchTrainees);
+        $('confirmTraineeBtn').addEventListener(
+          'click',
+          confirmTraineeSelection
+        );
+
+        $('scanQrBtn').addEventListener('click', openQrScanner);
+        $('closeQrBtn').addEventListener('click', closeQrScanner);
+        $('stopQrBtn').addEventListener('click', closeQrScanner);
+
+        // زر التقاط الصورة (الطريقة الموثوقة على الجوال) + الكاميرا المباشرة (للكمبيوتر).
+        $('qrPhotoBtn').addEventListener('click', function () {
+          $('qrFileInput').click();
+        });
+        $('qrFileInput').addEventListener('change', handleQrFile);
+        $('startQrLiveBtn').addEventListener('click', startQrCamera);
+
+        $('saveActivityBtn').addEventListener('click', saveActivity);
+        $('saveToolBtn').addEventListener('click', saveTool);
+
+        $('chooseBorrowTrainee').addEventListener('click', function () {
+          openTraineePicker('borrow');
+        });
+
+        $('chooseReturnTrainee').addEventListener('click', function () {
+          openTraineePicker('return');
+        });
+
+        $('saveBorrowBtn').addEventListener('click', saveBorrow);
+
+        $('saveEmployee').addEventListener('click', function () {
+          localStorage.setItem(
+            'employeeName',
+            $('employeeName').value.trim() || 'موظف'
+          );
+
+          alert('تم حفظ اسم الموظف.');
+        });
+
+        $('employeeName').value = getEmployeeName();
+      }
+
+      window.addEventListener('load', function () {
+        try {
+          wireEvents();
+          loadAllData();
+        } catch (error) {
+          alert('حدث خطأ في تشغيل الواجهة: ' + error.message);
+          console.error(error);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
