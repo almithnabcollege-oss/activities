@@ -1106,7 +1106,14 @@
         saveSession();
       }
 
-      function callApi(action, argument) {
+      // إجراءات القراءة الآمنة لإعادة المحاولة (لا تُكرّر أي كتابة).
+      var RETRYABLE_ACTIONS = [
+        'login', 'me', 'getAppData', 'getOpenBorrows', 'listUsers'
+      ];
+
+      function callApi(action, argument, attempt) {
+        attempt = attempt || 1;
+
         return fetch(API_URL, {
           method: 'POST',
           headers: {
@@ -1117,9 +1124,33 @@
             argument: argument,
             token: session ? session.token : ''
           })
+        }).catch(function () {
+          // فشل الاتصال بالكامل (شبكة/إنترنت/حجب) قبل وصول أي رد.
+          throw new Error(
+            'تعذّر الاتصال بالخادم. تأكد من اتصال الإنترنت، ' +
+            'وقد تحجب شبكة العمل أو إحدى إضافات المتصفح خدمة Google — ' +
+            'جرّب بيانات الجوال أو متصفحًا بلا إضافات ثم أعد المحاولة.'
+          );
         }).then(function (response) {
-          return response.json();
-        }).then(function (payload) {
+          return response.text();
+        }).then(function (text) {
+          var payload;
+
+          try {
+            payload = JSON.parse(text);
+          } catch (parseError) {
+            // أحيانًا يرد Apps Script صفحة HTML مؤقتة بدل JSON.
+            // نعيد المحاولة للقراءات فقط (حتى لا نكرّر أي كتابة).
+            if (attempt < 3 && RETRYABLE_ACTIONS.indexOf(action) > -1) {
+              return callApi(action, argument, attempt + 1);
+            }
+
+            throw new Error(
+              'تعذّر قراءة استجابة الخادم (استجابة مؤقتة غير صالحة). ' +
+              'حدّث الصفحة وحاول مرة أخرى بعد قليل.'
+            );
+          }
+
           // انتهاء الجلسة أو عدم الصلاحية: نعيد المستخدم لشاشة الدخول.
           if (payload && payload.needLogin) {
             clearSession();
@@ -1157,7 +1188,7 @@
           })
           .catch(function (error) {
             setLoading(false);
-            alert('حدث خطأ: ' + (error.message || error));
+            alert('تعذّرت العملية (' + name + '): ' + (error.message || error));
           });
       }
 
@@ -1205,12 +1236,21 @@
         runServerNoArgument('getAppData', function (result) {
           data = result || data;
 
-          loadOpenBorrows(function () {
-            updateDashboard();
-            renderTrainees();
-            renderActivities();
-            renderTools();
-          });
+          // نحمّل العهد المفتوحة، وإن تعذّر ذلك مؤقتًا نكمل العرض بلا نافذة خطأ مزعجة.
+          callApi('getOpenBorrows')
+            .then(function (borrows) {
+              openBorrows = borrows || [];
+            })
+            .catch(function (error) {
+              openBorrows = openBorrows || [];
+              console.warn('تعذّر تحميل العهد المفتوحة (سيُعاد لاحقًا):', error);
+            })
+            .then(function () {
+              updateDashboard();
+              renderTrainees();
+              renderActivities();
+              renderTools();
+            });
         });
       }
 
