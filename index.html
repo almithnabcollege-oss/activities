@@ -1011,9 +1011,17 @@
       <h3>إضافة فاتورة</h3>
 
       <div class="form-group">
-        <label>صورة الفاتورة (اختياري — تُقرأ تلقائيًا)</label>
-        <input id="invoicePhoto" type="file" accept="image/*" capture="environment">
+        <label>إدخال الفاتورة</label>
+        <button class="btn" id="invoiceCameraBtn" type="button">📷 تصوير</button>
+        <button class="btn secondary" id="invoiceGalleryBtn" type="button">🖼️ من المعرض</button>
+        <button class="btn success" id="invoiceQrBtn" type="button">▦ مسح رمز الفاتورة الضريبي</button>
       </div>
+
+      <!-- مُدخلات مخفية: الأولى بالكاميرا، الثانية من المعرض -->
+      <input id="invoiceCameraInput" type="file" accept="image/*" capture="environment" class="hidden">
+      <input id="invoiceGalleryInput" type="file" accept="image/*" class="hidden">
+      <!-- عنصر مخفي لفك رمز QR من الصورة -->
+      <div id="invoiceQrReader" class="hidden"></div>
 
       <div id="invoiceStatus"></div>
 
@@ -1399,28 +1407,35 @@
           renderTrainees();
           renderActivities();
           renderTools();
+        } else {
+          $('dashboardNotice').innerHTML =
+            '<div class="notice info">جاري تحميل البيانات لأول مرة... يمكنك التنقّل، وستظهر الأرقام بعد لحظات.</div>';
         }
 
-        runServerNoArgument('getAppData', function (result) {
-          data = result || data;
-          writeDataCache(data);
+        // جلب صامت في الخلفية — بلا تعتيم الواجهة ولا تعطيلها (callApi لا يشغّل مؤشر التحميل).
+        callApi('getAppData')
+          .then(function (result) {
+            data = result || data;
+            writeDataCache(data);
 
-          // نحمّل العهد المفتوحة، وإن تعذّر ذلك مؤقتًا نكمل العرض بلا نافذة خطأ مزعجة.
-          callApi('getOpenBorrows')
-            .then(function (borrows) {
-              openBorrows = borrows || [];
-            })
-            .catch(function (error) {
-              openBorrows = openBorrows || [];
-              console.warn('تعذّر تحميل العهد المفتوحة (سيُعاد لاحقًا):', error);
-            })
-            .then(function () {
-              updateDashboard();
-              renderTrainees();
-              renderActivities();
-              renderTools();
-            });
-        });
+            return callApi('getOpenBorrows')
+              .then(function (borrows) { openBorrows = borrows || []; })
+              .catch(function () { openBorrows = openBorrows || []; });
+          })
+          .then(function () {
+            updateDashboard();
+            renderTrainees();
+            renderActivities();
+            renderTools();
+          })
+          .catch(function (error) {
+            // لو لا كاش ولا جلب (شبكة)، نُظهر تنبيهًا لطيفًا بلا إيقاف الواجهة.
+            if (!(cached && cached.trainees)) {
+              $('dashboardNotice').innerHTML =
+                '<div class="notice warn">تعذّر تحميل البيانات حاليًا: ' +
+                escapeHtml(error.message || error) + ' — حدّث الصفحة لاحقًا.</div>';
+            }
+          });
       }
 
       function loadOpenBorrows(callback) {
@@ -1784,11 +1799,15 @@
       }
 
       function openQrScanner(purpose) {
-        qrPurpose = (purpose === 'tool') ? 'tool' : 'trainee';
+        qrPurpose = (purpose === 'tool') ? 'tool'
+          : (purpose === 'invoice') ? 'invoice'
+          : 'trainee';
 
         $('qrModalTitle').textContent = (qrPurpose === 'tool')
           ? 'مسح رمز الأداة'
-          : 'مسح بطاقة المتدرب';
+          : (qrPurpose === 'invoice')
+            ? 'مسح رمز الفاتورة الضريبي'
+            : 'مسح بطاقة المتدرب';
 
         showModal('qrModal');
 
@@ -1936,6 +1955,12 @@
         // مسح رمز أداة (أثناء العهدة).
         if (qrPurpose === 'tool') {
           handleToolScan(code);
+          return;
+        }
+
+        // مسح رمز الفاتورة الضريبي (أثناء إضافة فاتورة).
+        if (qrPurpose === 'invoice') {
+          applyInvoiceQr(code);
           return;
         }
 
@@ -2246,25 +2271,89 @@
         $('invoiceStatement').value = '';
         $('invoiceAmount').value = '';
         $('invoicePayment').value = 'نقد';
-        $('invoicePhoto').value = '';
+        $('invoiceCameraInput').value = '';
+        $('invoiceGalleryInput').value = '';
         $('invoiceStatus').innerHTML =
-          '<div class="notice info">اختر صورة الفاتورة (اختياري) وسنحاول قراءتها، أو أدخل البيانات يدويًا.</div>';
+          '<div class="notice info">صوّر الفاتورة أو اخترها من المعرض (نحفظ الصورة ونحاول قراءتها)، ' +
+          'أو امسح <b>رمز الفاتورة الضريبي</b> لاستخراج المبلغ بدقة — أو أدخل يدويًا.</div>';
 
         showModal('invoiceModal');
       }
 
-      function handleInvoicePhoto(event) {
+      // يحلّل رمز الفاتورة الضريبية (ZATCA) بصيغة TLV المشفّرة بـ base64.
+      // يعيد {seller, vatNo, timestamp, total, vat} أو null إن لم يكن رمزًا ضريبيًا.
+      function parseZatcaQr(text) {
+        if (!text) {
+          return null;
+        }
+
+        try {
+          var raw = atob(String(text).trim());
+          var bytes = new Uint8Array(raw.length);
+          for (var i = 0; i < raw.length; i++) {
+            bytes[i] = raw.charCodeAt(i);
+          }
+
+          var res = {};
+          var p = 0;
+          while (p + 2 <= bytes.length) {
+            var tag = bytes[p++];
+            var len = bytes[p++];
+            if (p + len > bytes.length) {
+              break;
+            }
+            res[tag] = new TextDecoder('utf-8').decode(bytes.slice(p, p + len));
+            p += len;
+          }
+
+          // تحقق: رمز ضريبي يحتوي اسم بائع + إجمالي رقمي.
+          if (res[1] && res[4] && !isNaN(parseFloat(res[4]))) {
+            return {
+              seller: res[1],
+              vatNo: res[2],
+              timestamp: res[3],
+              total: String(res[4]).trim(),
+              vat: res[5]
+            };
+          }
+          return null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      // يحاول فك رمز QR من ملف صورة (لقراءة الفاتورة الضريبية).
+      function tryReadInvoiceQrFromFile(file) {
+        return loadScript(LIBS.html5qr).then(function () {
+          var scanner = new Html5Qrcode('invoiceQrReader');
+          return scanner.scanFile(file, false)
+            .then(function (text) {
+              try { scanner.clear(); } catch (ignore) {}
+              return parseZatcaQr(text);
+            })
+            .catch(function () {
+              try { scanner.clear(); } catch (ignore) {}
+              return null;
+            });
+        }).catch(function () {
+          return null;
+        });
+      }
+
+      // معالجة صورة الفاتورة (تصوير أو من المعرض): قراءة QR ضريبي + حفظ الصورة + OCR احتياطي.
+      function handleInvoiceImage(event) {
         var file = event.target.files && event.target.files[0];
+        event.target.value = '';
 
         if (!file) {
           return;
         }
 
         $('invoiceStatus').innerHTML =
-          '<div class="notice info">جاري ضغط الصورة ورفعها وقراءتها... قد يستغرق لحظات.</div>';
+          '<div class="notice info">جاري المعالجة (قراءة الرمز + رفع الصورة)... لحظات.</div>';
 
-        compressImage(file, 1500, 0.7)
-          .then(function (dataUrl) {
+        tryReadInvoiceQrFromFile(file).then(function (zatca) {
+          compressImage(file, 1500, 0.7).then(function (dataUrl) {
             var base64 = dataUrl.split(',')[1];
 
             runServer('uploadInvoice', {
@@ -2272,32 +2361,53 @@
               mimeType: 'image/jpeg'
             }, function (result) {
               invoiceFileId = result.fileId;
-
               var g = result.guess || {};
 
-              if (g.amount && !$('invoiceAmount').value) {
-                $('invoiceAmount').value = g.amount;
-              }
-              if (g.invoiceNo && !$('invoiceNo').value) {
-                $('invoiceNo').value = g.invoiceNo;
-              }
-              if (g.payment) {
-                $('invoicePayment').value = g.payment;
-              }
+              if (zatca && zatca.total) {
+                // الأولوية للرمز الضريبي (دقيق).
+                $('invoiceAmount').value = zatca.total;
+                if (zatca.seller && !$('invoiceStatement').value) {
+                  $('invoiceStatement').value = zatca.seller;
+                }
+                $('invoiceStatus').innerHTML =
+                  '<div class="notice ok">تمت قراءة <b>رمز الفاتورة الضريبي</b> بدقة ✓ (المبلغ: ' +
+                  escapeHtml(zatca.total) + '). راجع باقي الحقول.</div>';
+              } else {
+                if (g.amount && !$('invoiceAmount').value) { $('invoiceAmount').value = g.amount; }
+                if (g.invoiceNo && !$('invoiceNo').value) { $('invoiceNo').value = g.invoiceNo; }
+                if (g.payment) { $('invoicePayment').value = g.payment; }
 
-              var read = (g.amount || g.invoiceNo || g.payment);
-              $('invoiceStatus').innerHTML =
-                '<div class="notice ok">تم رفع الصورة' +
-                (read
-                  ? ' وقراءة بياناتها مبدئيًا — <b>راجع الحقول وصحّحها</b>.'
-                  : '. لم تُقرأ البيانات تلقائيًا، أدخلها يدويًا.') +
-                '</div>';
+                var read = (g.amount || g.invoiceNo || g.payment);
+                $('invoiceStatus').innerHTML =
+                  '<div class="notice ' + (read ? 'ok' : 'info') + '">تم رفع الصورة' +
+                  (read
+                    ? ' وقراءة مبدئية — <b>راجع الحقول وصحّحها</b>.'
+                    : ' — لا يوجد رمز ضريبي، أدخل البيانات يدويًا.') +
+                  '</div>';
+              }
             });
-          })
-          .catch(function () {
+          }).catch(function () {
             $('invoiceStatus').innerHTML =
-              '<div class="notice error">تعذّر تجهيز الصورة. جرّب صورة أخرى أو أدخل البيانات يدويًا.</div>';
+              '<div class="notice error">تعذّر تجهيز الصورة. جرّب صورة أخرى أو أدخل يدويًا.</div>';
           });
+        });
+      }
+
+      // تطبيق نتيجة مسح رمز الفاتورة الضريبي بالكاميرا المباشرة (بلا حفظ صورة).
+      function applyInvoiceQr(code) {
+        var z = parseZatcaQr(code);
+
+        if (z && z.total) {
+          $('invoiceAmount').value = z.total;
+          if (z.seller && !$('invoiceStatement').value) {
+            $('invoiceStatement').value = z.seller;
+          }
+          $('invoiceStatus').innerHTML =
+            '<div class="notice ok">تمت قراءة رمز الفاتورة الضريبي ✓ (المبلغ: ' +
+            escapeHtml(z.total) + '). أرفق صورة إن أردت حفظها.</div>';
+        } else {
+          alert('الرمز المقروء ليس رمز فاتورة ضريبية صالحًا.\nصوّر الفاتورة أو أدخل البيانات يدويًا.');
+        }
       }
 
       function saveInvoiceRecord() {
@@ -3364,7 +3474,17 @@
           window.print();
         });
 
-        $('invoicePhoto').addEventListener('change', handleInvoicePhoto);
+        $('invoiceCameraBtn').addEventListener('click', function () {
+          $('invoiceCameraInput').click();
+        });
+        $('invoiceGalleryBtn').addEventListener('click', function () {
+          $('invoiceGalleryInput').click();
+        });
+        $('invoiceQrBtn').addEventListener('click', function () {
+          openQrScanner('invoice');
+        });
+        $('invoiceCameraInput').addEventListener('change', handleInvoiceImage);
+        $('invoiceGalleryInput').addEventListener('change', handleInvoiceImage);
         $('saveInvoiceBtn').addEventListener('click', saveInvoiceRecord);
         $('submitBulkBtn').addEventListener('click', submitBulkParticipants);
         $('bulkSearch').addEventListener('input', function () {
