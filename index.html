@@ -1806,20 +1806,6 @@
           showModal('borrowModal');
         }
 
-        if (traineeMode === 'return') {
-          $('returnTraineeInfo').innerHTML =
-            '<div class="notice ok">' +
-            '<b>' + escapeHtml(selectedTrainee['اسم المتدرب']) + '</b><br>' +
-            'رقم المتدرب: ' +
-            escapeHtml(selectedTrainee['رقم المتدرب']) +
-            '<br>رقم الجوال: ' +
-            escapeHtml(selectedTrainee['رقم الجوال'] || '-') +
-            '</div>';
-
-          renderReturnTools();
-          showModal('returnModal');
-        }
-
         if (traineeMode === 'participant') {
           saveParticipant();
         }
@@ -3576,8 +3562,8 @@
           openTraineePicker('borrow');
         });
 
-        $('chooseReturnTrainee').addEventListener('click', function () {
-          openTraineePicker('return');
+        $('returnSearch').addEventListener('input', function () {
+          renderAllOpenBorrows($('returnSearch').value);
         });
 
         $('saveBorrowBtn').addEventListener('click', saveBorrow);
