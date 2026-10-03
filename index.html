@@ -587,7 +587,7 @@
       <button data-page="activities">الأنشطة</button>
       <button data-page="trainees">المتدربون</button>
       <button data-page="reports">التقارير</button>
-      <button data-page="settings">الإعدادات</button>
+      <button data-page="settings" data-admin-only class="hidden">الإعدادات</button>
       <button data-page="users" data-admin-only class="hidden">المستخدمون</button>
     </nav>
 
@@ -1218,6 +1218,10 @@
       }
 
       function getEmployeeName() {
+        // نسبة العمليات لاسم المستخدم المسجّل دخوله (أدق من حقل الإعدادات القديم).
+        if (session && session.name) {
+          return session.name;
+        }
         try {
           return localStorage.getItem('employeeName') || 'موظف';
         } catch (error) {
