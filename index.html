@@ -6,9 +6,8 @@
 
   <title>نظام الأنشطة والعهدة</title>
 
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- المكتبات الثقيلة تُحمّل عند الحاجة فقط (lazy) لتسريع الفتح — انظر loadScript بالأسفل -->
+
 
   <style>
     :root {
@@ -1021,6 +1020,50 @@
       var qrRunning = false;
       var qrPurpose = 'trainee'; // 'trainee' لمسح البطاقة، 'tool' لمسح رمز الأداة
 
+      // روابط المكتبات الثقيلة — تُحمّل عند الحاجة فقط لتسريع الفتح.
+      var LIBS = {
+        html5qr: 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+        xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+        qrcode: 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+      };
+
+      var loadedScripts = {};
+
+      function loadScript(url) {
+        if (loadedScripts[url]) {
+          return loadedScripts[url];
+        }
+
+        loadedScripts[url] = new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          script.src = url;
+          script.onload = resolve;
+          script.onerror = function () {
+            loadedScripts[url] = null;
+            reject(new Error('تعذّر تحميل مكتبة من الإنترنت.'));
+          };
+          document.head.appendChild(script);
+        });
+
+        return loadedScripts[url];
+      }
+
+      // كاش بيانات التطبيق لعرض فوري قبل اكتمال الجلب من الخادم.
+      function writeDataCache(value) {
+        try {
+          localStorage.setItem('appDataCache', JSON.stringify(value));
+        } catch (ignore) {}
+      }
+
+      function readDataCache() {
+        try {
+          var raw = localStorage.getItem('appDataCache');
+          return raw ? JSON.parse(raw) : null;
+        } catch (ignore) {
+          return null;
+        }
+      }
+
       function $(id) {
         return document.getElementById(id);
       }
@@ -1233,8 +1276,19 @@
       }
 
       function loadAllData() {
+        // عرض فوري من الكاش المحلي (إن وُجد) ريثما تصل أحدث البيانات من الخادم.
+        var cached = readDataCache();
+        if (cached && cached.trainees) {
+          data = cached;
+          updateDashboard();
+          renderTrainees();
+          renderActivities();
+          renderTools();
+        }
+
         runServerNoArgument('getAppData', function (result) {
           data = result || data;
+          writeDataCache(data);
 
           // نحمّل العهد المفتوحة، وإن تعذّر ذلك مؤقتًا نكمل العرض بلا نافذة خطأ مزعجة.
           callApi('getOpenBorrows')
@@ -1375,20 +1429,28 @@
           return;
         }
 
+        var isCsv = file.name.toLowerCase().endsWith('.csv');
+
+        // مكتبة Excel تُحمّل عند الحاجة فقط (للملفات غير CSV).
+        var ensureLib = isCsv ? Promise.resolve() : loadScript(LIBS.xlsx);
+
+        ensureLib.then(function () {
+          readTraineeFile(file, isCsv);
+        }).catch(function () {
+          alert('تعذّر تحميل مكتبة Excel. استخدم ملف CSV أو تحقق من الإنترنت.');
+        });
+      }
+
+      function readTraineeFile(file, isCsv) {
         var reader = new FileReader();
 
         reader.onload = function (event) {
           try {
             var rows;
 
-            if (file.name.toLowerCase().endsWith('.csv')) {
+            if (isCsv) {
               rows = parseCsv(event.target.result);
             } else {
-              if (typeof XLSX === 'undefined') {
-                alert('تعذر تحميل مكتبة Excel. استخدم CSV أو تحقق من الإنترنت.');
-                return;
-              }
-
               var workbook = XLSX.read(event.target.result, {
                 type: 'array'
               });
@@ -1427,7 +1489,7 @@
           }
         };
 
-        if (file.name.toLowerCase().endsWith('.csv')) {
+        if (isCsv) {
           reader.readAsText(file, 'UTF-8');
         } else {
           reader.readAsArrayBuffer(file);
@@ -1607,11 +1669,6 @@
       }
 
       function openQrScanner(purpose) {
-        if (typeof Html5Qrcode === 'undefined') {
-          alert('تعذر تحميل قارئ QR. تحقق من الإنترنت ثم حدّث الصفحة.');
-          return;
-        }
-
         qrPurpose = (purpose === 'tool') ? 'tool' : 'trainee';
 
         $('qrModalTitle').textContent = (qrPurpose === 'tool')
@@ -1621,11 +1678,17 @@
         showModal('qrModal');
 
         $('qrMessage').innerHTML =
-          '<div class="notice info">جاري تشغيل الكاميرا...</div>';
+          '<div class="notice info">جاري تجهيز الكاميرا...</div>';
 
-        setTimeout(function () {
-          startQrCamera();
-        }, 250);
+        // تحميل مكتبة القراءة عند أول استخدام فقط.
+        loadScript(LIBS.html5qr)
+          .then(function () {
+            setTimeout(startQrCamera, 250);
+          })
+          .catch(function () {
+            $('qrMessage').innerHTML =
+              '<div class="notice error">تعذّر تحميل قارئ QR. تحقق من الإنترنت ثم حاول مجددًا.</div>';
+          });
       }
 
       function startQrCamera() {
@@ -2073,20 +2136,24 @@
         $('toolQrId').textContent = 'رقم الأداة: ' + tool['رقم الأداة'];
 
         var holder = $('toolQrCode');
-        holder.innerHTML = '';
-
-        if (typeof QRCode === 'undefined') {
-          holder.textContent = 'تعذّر تحميل مولّد QR. تحقق من الإنترنت وحدّث الصفحة.';
-        } else {
-          new QRCode(holder, {
-            text: 'TOOL:' + tool['رقم الأداة'],
-            width: 200,
-            height: 200,
-            correctLevel: QRCode.CorrectLevel.M
-          });
-        }
+        holder.textContent = 'جاري توليد الرمز...';
 
         showModal('toolQrModal');
+
+        // مولّد QR يُحمّل عند أول استخدام فقط.
+        loadScript(LIBS.qrcode)
+          .then(function () {
+            holder.innerHTML = '';
+            new QRCode(holder, {
+              text: 'TOOL:' + tool['رقم الأداة'],
+              width: 200,
+              height: 200,
+              correctLevel: QRCode.CorrectLevel.M
+            });
+          })
+          .catch(function () {
+            holder.textContent = 'تعذّر تحميل مولّد QR. تحقق من الإنترنت ثم حاول مجددًا.';
+          });
       }
 
       function saveTool() {
