@@ -960,11 +960,15 @@
 
       <h3>تسجيل إرجاع أدوات</h3>
 
-      <button class="btn secondary" id="chooseReturnTrainee">
-        تغيير المتدرب
-      </button>
+      <div class="notice info">
+        القائمة تعرض كل من لديهم عهدة مفتوحة والأدوات التي بعهدتهم — اضغط «إرجاع» أمام الأداة.
+      </div>
 
-      <div id="returnTraineeInfo"></div>
+      <div class="form-group">
+        <label>بحث (اسم المتدرب / رقم / أداة)</label>
+        <input id="returnSearch" placeholder="اكتب للتصفية">
+      </div>
+
       <div id="returnToolList"></div>
     </div>
   </div>
@@ -1450,6 +1454,27 @@
             callback();
           }
         });
+      }
+
+      // تحديث كامل صامت بالخلفية (بعد عملية) — بلا تعتيم ولا انتظار المستخدم.
+      function backgroundRefreshAll() {
+        callApi('getAppData')
+          .then(function (result) {
+            if (result) {
+              data = result;
+              writeDataCache(data);
+            }
+            return callApi('getOpenBorrows')
+              .then(function (borrows) { openBorrows = borrows || []; })
+              .catch(function () {});
+          })
+          .then(function () {
+            updateDashboard();
+            renderTools();
+            renderTrainees();
+            renderActivities();
+          })
+          .catch(function () {});
       }
 
       function updateDashboard() {
@@ -2815,7 +2840,19 @@
 
         runServer('createBorrow', item, function (result) {
           hideModal('borrowModal');
-          loadAllData();
+
+          // تحديث فوري محلي: الأداة صارت «في عهدة» — بلا انتظار الجلب الثقيل.
+          var tool = data.tools.find(function (x) {
+            return String(x['رقم الأداة']) === String(item.toolId);
+          });
+          if (tool) {
+            tool['الحالة الحالية'] = 'في عهدة';
+          }
+          updateDashboard();
+          renderTools();
+
+          // ثم تحديث كامل بالخلفية (يجلب العهد المفتوحة والحركات).
+          backgroundRefreshAll();
 
           var message =
             'السلام عليكم ' + item.traineeName + '،\n' +
@@ -2843,41 +2880,65 @@
       function openReturnForm() {
         selectedTrainee = null;
 
-        $('returnTraineeInfo').innerHTML = '';
-        $('returnToolList').innerHTML =
-          '<div class="notice info">اختر المتدرب أولًا.</div>';
+        if ($('returnSearch')) {
+          $('returnSearch').value = '';
+        }
 
-        // التدفّق الجديد: يبدأ مباشرة بمسح البطاقة / إدخال رقم المتدرب.
-        openTraineePicker('return');
+        $('returnToolList').innerHTML =
+          '<div class="notice info">جاري تحميل العهد المفتوحة...</div>';
+
+        showModal('returnModal');
+
+        // جلب العهد المفتوحة الحديثة (خفيف وسريع) ثم عرض الجميع.
+        callApi('getOpenBorrows')
+          .then(function (borrows) {
+            openBorrows = borrows || [];
+            renderAllOpenBorrows('');
+          })
+          .catch(function () {
+            renderAllOpenBorrows('');
+          });
       }
 
-      function renderReturnTools() {
-        var borrows = openBorrows.filter(function (borrow) {
-          return String(borrow.traineeId) ===
-            String(selectedTrainee['رقم المتدرب']);
+      // يعرض قائمة كل من لديهم عهدة مفتوحة مع أسماء الأدوات + زر إرجاع لكل سطر.
+      function renderAllOpenBorrows(query) {
+        var q = (query || '').trim().toLowerCase();
+
+        var list = openBorrows.filter(function (b) {
+          if (!q) {
+            return true;
+          }
+          return String(b.traineeName || '').toLowerCase().indexOf(q) > -1 ||
+            String(b.traineeId || '').indexOf(q) > -1 ||
+            String(b.toolName || '').toLowerCase().indexOf(q) > -1;
         });
 
-        var html = '<h4>الأدوات في عهدة المتدرب</h4>';
+        var html;
 
-        if (!borrows.length) {
-          html +=
-            '<div class="notice info">لا توجد أدوات في عهدة هذا المتدرب.</div>';
+        if (!openBorrows.length) {
+          html = '<div class="notice ok">لا توجد عهد مفتوحة حاليًا.</div>';
+        } else if (!list.length) {
+          html = '<div class="notice warn">لا نتائج مطابقة.</div>';
         } else {
-          html +=
+          html =
+            '<h4>العهد المفتوحة (' + list.length + ')</h4>' +
             '<table><thead><tr>' +
+            '<th>المتدرب</th>' +
             '<th>الأداة</th>' +
             '<th>وقت العهدة</th>' +
             '<th>إرجاع</th>' +
             '</tr></thead><tbody>';
 
-          borrows.forEach(function (borrow) {
+          list.forEach(function (b) {
             html +=
               '<tr>' +
-              '<td>' + escapeHtml(borrow.toolName) + '</td>' +
-              '<td>' + escapeHtml(borrow.dateTime) + '</td>' +
+              '<td>' + escapeHtml(b.traineeName) +
+              '<br><small>' + escapeHtml(b.traineeId) + '</small></td>' +
+              '<td>' + escapeHtml(b.toolName) + '</td>' +
+              '<td>' + escapeHtml(b.dateTime) +
+              (b.delayed ? ' <span class="badge damaged">متأخرة</span>' : '') + '</td>' +
               '<td><button class="btn warning" data-return-borrow="' +
-              escapeHtml(borrow.id) +
-              '">إرجاع وتقييم</button></td>' +
+              escapeHtml(b.id) + '">إرجاع</button></td>' +
               '</tr>';
           });
 
@@ -2888,60 +2949,73 @@
 
         document.querySelectorAll('[data-return-borrow]').forEach(function (button) {
           button.onclick = function () {
-            var borrow = openBorrows.find(function (item) {
-              return String(item.id) ===
-                String(button.dataset.returnBorrow);
-            });
-
-            if (!borrow) {
-              alert('تعذر العثور على حركة العهدة.');
-              return;
-            }
-
-            var condition = prompt(
-              'حالة الأداة عند الإرجاع: جيدة / تحتاج صيانة / تالفة',
-              'جيدة'
-            );
-
-            if (!condition) {
-              return;
-            }
-
-            var notes = prompt('ملاحظات عن الحالة (اختياري):', '') || '';
-
-            var traineeName = selectedTrainee['اسم المتدرب'];
-            var traineePhone = selectedTrainee['رقم الجوال'];
-
-            runServer('createReturn', {
-              borrowId: borrow.id,
-              toolId: borrow.toolId,
-              condition: condition,
-              notes: notes,
-              employeeName: getEmployeeName(),
-              source: 'QR'
-            }, function (result) {
-              hideModal('returnModal');
-              loadAllData();
-
-              var message =
-                'السلام عليكم ' + traineeName + '،\n' +
-                'نشكرك على إرجاع الأداة «' + borrow.toolName + '» في وقتها.\n' +
-                'تم تسجيل التسليم بنجاح بتاريخ: ' + result.dateTime + '.\n\n' +
-                'نقدّر التزامك وحرصك 🌟 — الكلية التقنية بالمذنب.';
-
-              showNotify(
-                'تم تسجيل التسليم ✅',
-                '<div class="notice ok">' +
-                'الأداة: <b>' + escapeHtml(borrow.toolName) + '</b><br>' +
-                'المتدرب: ' + escapeHtml(traineeName) + '<br>' +
-                'وقت التسليم: ' + escapeHtml(result.dateTime) +
-                '</div>' +
-                '<p>أرسل للمتدرب رسالة شكر بالتسليم:</p>',
-                traineePhone,
-                message
-              );
-            });
+            handleReturnBorrow(button.dataset.returnBorrow);
           };
+        });
+      }
+
+      function handleReturnBorrow(borrowId) {
+        var borrow = openBorrows.find(function (item) {
+          return String(item.id) === String(borrowId);
+        });
+
+        if (!borrow) {
+          alert('تعذر العثور على حركة العهدة.');
+          return;
+        }
+
+        var condition = prompt(
+          'حالة الأداة عند الإرجاع: جيدة / تحتاج صيانة / تالفة',
+          'جيدة'
+        );
+
+        if (!condition) {
+          return;
+        }
+
+        var notes = prompt('ملاحظات عن الحالة (اختياري):', '') || '';
+
+        runServer('createReturn', {
+          borrowId: borrow.id,
+          toolId: borrow.toolId,
+          condition: condition,
+          notes: notes,
+          employeeName: getEmployeeName(),
+          source: 'QR'
+        }, function (result) {
+          // تحديث فوري: أزل العهدة من القائمة وأعد الأداة «متاحة» محليًا.
+          openBorrows = openBorrows.filter(function (x) {
+            return String(x.id) !== String(borrow.id);
+          });
+          var tool = data.tools.find(function (x) {
+            return String(x['رقم الأداة']) === String(borrow.toolId);
+          });
+          if (tool) {
+            tool['الحالة الحالية'] = 'متاحة';
+          }
+
+          renderAllOpenBorrows($('returnSearch') ? $('returnSearch').value : '');
+          updateDashboard();
+          renderTools();
+          backgroundRefreshAll();
+
+          var message =
+            'السلام عليكم ' + borrow.traineeName + '،\n' +
+            'نشكرك على إرجاع الأداة «' + borrow.toolName + '» في وقتها.\n' +
+            'تم تسجيل التسليم بنجاح بتاريخ: ' + result.dateTime + '.\n\n' +
+            'نقدّر التزامك وحرصك 🌟 — الكلية التقنية بالمذنب.';
+
+          showNotify(
+            'تم تسجيل التسليم ✅',
+            '<div class="notice ok">' +
+            'الأداة: <b>' + escapeHtml(borrow.toolName) + '</b><br>' +
+            'المتدرب: ' + escapeHtml(borrow.traineeName) + '<br>' +
+            'وقت التسليم: ' + escapeHtml(result.dateTime) +
+            '</div>' +
+            '<p>أرسل للمتدرب رسالة شكر بالتسليم:</p>',
+            borrow.phone,
+            message
+          );
         });
       }
 
