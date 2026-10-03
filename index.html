@@ -669,6 +669,8 @@
         <input id="traineeSearch" placeholder="الاسم أو رقم المتدرب أو الجوال">
       </div>
 
+      <button class="btn secondary" id="refreshTraineesBtn">🔄 تحديث قائمة المتدربين</button>
+
       <div id="traineeTable"></div>
     </section>
 
@@ -1420,29 +1422,55 @@
             '<div class="notice info">جاري تحميل البيانات لأول مرة... يمكنك التنقّل، وستظهر الأرقام بعد لحظات.</div>';
         }
 
-        // جلب صامت في الخلفية — بلا تعتيم الواجهة ولا تعطيلها (callApi لا يشغّل مؤشر التحميل).
-        callApi('getAppData')
-          .then(function (result) {
-            data = result || data;
-            writeDataCache(data);
-
+        // جلب خفيف: البيانات الأساسية (بلا المتدربين) + العهد المفتوحة.
+        callApi('getCoreData')
+          .then(function (core) {
+            if (core) {
+              data.tools = core.tools || [];
+              data.activities = core.activities || [];
+              data.participants = core.participants || [];
+              data.transactions = core.transactions || [];
+            }
             return callApi('getOpenBorrows')
               .then(function (borrows) { openBorrows = borrows || []; })
-              .catch(function () { openBorrows = openBorrows || []; });
+              .catch(function () {});
           })
           .then(function () {
+            // المتدربون نادرًا يتغيّرون: نجلبهم مرة فقط إن لم يكونوا محفوظين.
+            if (!(data.trainees && data.trainees.length)) {
+              return callApi('getTraineesData')
+                .then(function (t) { data.trainees = (t && t.trainees) || []; })
+                .catch(function () {});
+            }
+          })
+          .then(function () {
+            writeDataCache(data);
             updateDashboard();
             renderTrainees();
             renderActivities();
             renderTools();
           })
           .catch(function (error) {
-            // لو لا كاش ولا جلب (شبكة)، نُظهر تنبيهًا لطيفًا بلا إيقاف الواجهة.
             if (!(cached && cached.trainees)) {
               $('dashboardNotice').innerHTML =
                 '<div class="notice warn">تعذّر تحميل البيانات حاليًا: ' +
                 escapeHtml(error.message || error) + ' — حدّث الصفحة لاحقًا.</div>';
             }
+          });
+      }
+
+      // تحديث قائمة المتدربين يدويًا أو بعد الاستيراد (الوحيد الذي يسحب المتدربين).
+      function refreshTrainees(callback) {
+        callApi('getTraineesData')
+          .then(function (t) {
+            data.trainees = (t && t.trainees) || [];
+            writeDataCache(data);
+            renderTrainees();
+            updateDashboard();
+            if (callback) { callback(); }
+          })
+          .catch(function () {
+            alert('تعذّر تحديث قائمة المتدربين. تحقق من الاتصال وحاول مجددًا.');
           });
       }
 
@@ -1456,22 +1484,24 @@
         });
       }
 
-      // تحديث كامل صامت بالخلفية (بعد عملية) — بلا تعتيم ولا انتظار المستخدم.
+      // تحديث خفيف صامت بالخلفية (بعد عملية) — بيانات أساسية + عهد مفتوحة، بلا سحب المتدربين.
       function backgroundRefreshAll() {
-        callApi('getAppData')
-          .then(function (result) {
-            if (result) {
-              data = result;
-              writeDataCache(data);
+        callApi('getCoreData')
+          .then(function (core) {
+            if (core) {
+              data.tools = core.tools || data.tools;
+              data.activities = core.activities || [];
+              data.participants = core.participants || [];
+              data.transactions = core.transactions || [];
             }
             return callApi('getOpenBorrows')
               .then(function (borrows) { openBorrows = borrows || []; })
               .catch(function () {});
           })
           .then(function () {
+            writeDataCache(data);
             updateDashboard();
             renderTools();
-            renderTrainees();
             renderActivities();
           })
           .catch(function () {});
@@ -1640,7 +1670,8 @@
                   result.updated +
                   '.</div>';
 
-                loadAllData();
+                // المتدربون تغيّروا → حدّث قائمتهم المخزّنة.
+                refreshTrainees();
               }
             );
           } catch (error) {
@@ -3515,6 +3546,12 @@
 
         $('importTrainees').addEventListener('click', importTrainees);
         $('traineeSearch').addEventListener('input', renderTrainees);
+        $('refreshTraineesBtn').addEventListener('click', function () {
+          $('refreshTraineesBtn').textContent = '... جاري التحديث';
+          refreshTrainees(function () {
+            $('refreshTraineesBtn').textContent = '🔄 تحديث قائمة المتدربين';
+          });
+        });
 
         $('modalTraineeSearch').addEventListener('input', searchTrainees);
         $('confirmTraineeBtn').addEventListener(
