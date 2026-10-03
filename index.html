@@ -989,6 +989,21 @@
     </div>
   </div>
 
+  <div id="notifyModal" class="modal">
+    <div class="modal-box">
+      <button class="close" data-close="notifyModal">×</button>
+
+      <h3 id="notifyTitle">تم</h3>
+
+      <div id="notifyBody"></div>
+      <div id="notifyActions" style="margin-top: 12px;"></div>
+
+      <button class="btn secondary" data-close="notifyModal" style="margin-top: 14px;">
+        إغلاق
+      </button>
+    </div>
+  </div>
+
   <script>
     (function () {
       'use strict';
@@ -2289,7 +2304,26 @@
           hideModal('borrowModal');
           loadAllData();
 
-          alert('تم تسجيل العهدة في: ' + result.dateTime);
+          var message =
+            'السلام عليكم ' + item.traineeName + '،\n' +
+            'تم تسجيل عهدة أداة باسمك في الكلية التقنية بالمذنب:\n' +
+            '• الأداة: ' + item.toolName + '\n' +
+            '• رقم الأداة: ' + item.toolId + '\n' +
+            '• وقت الاستلام: ' + result.dateTime + '\n\n' +
+            'نثق بحرصك على سلامة العهدة، ونتطلّع لإرجاعها فور انتهائك منها. ' +
+            'شكرًا لتعاونك وحرصك 🌟';
+
+          showNotify(
+            'تم تسجيل العهدة ✅',
+            '<div class="notice ok">' +
+            'العهدة: <b>' + escapeHtml(item.toolName) + '</b><br>' +
+            'المتدرب: ' + escapeHtml(item.traineeName) + '<br>' +
+            'وقت الاستلام: ' + escapeHtml(result.dateTime) +
+            '</div>' +
+            '<p>أرسل للمتدرب رسالة واتساب ببيانات العهدة وتذكيره بإرجاعها في وقتها:</p>',
+            item.phone,
+            message
+          );
         });
       }
 
@@ -2362,6 +2396,9 @@
 
             var notes = prompt('ملاحظات عن الحالة (اختياري):', '') || '';
 
+            var traineeName = selectedTrainee['اسم المتدرب'];
+            var traineePhone = selectedTrainee['رقم الجوال'];
+
             runServer('createReturn', {
               borrowId: borrow.id,
               toolId: borrow.toolId,
@@ -2373,7 +2410,23 @@
               hideModal('returnModal');
               loadAllData();
 
-              alert('تم تسجيل الإرجاع في: ' + result.dateTime);
+              var message =
+                'السلام عليكم ' + traineeName + '،\n' +
+                'نشكرك على إرجاع الأداة «' + borrow.toolName + '» في وقتها.\n' +
+                'تم تسجيل التسليم بنجاح بتاريخ: ' + result.dateTime + '.\n\n' +
+                'نقدّر التزامك وحرصك 🌟 — الكلية التقنية بالمذنب.';
+
+              showNotify(
+                'تم تسجيل التسليم ✅',
+                '<div class="notice ok">' +
+                'الأداة: <b>' + escapeHtml(borrow.toolName) + '</b><br>' +
+                'المتدرب: ' + escapeHtml(traineeName) + '<br>' +
+                'وقت التسليم: ' + escapeHtml(result.dateTime) +
+                '</div>' +
+                '<p>أرسل للمتدرب رسالة شكر بالتسليم:</p>',
+                traineePhone,
+                message
+              );
             });
           };
         });
@@ -2409,8 +2462,26 @@
           number +
           '?text=' +
           encodeURIComponent(message) +
-          '">واتساب</a>'
+          '">📲 إرسال واتساب</a>'
         );
+      }
+
+      // يعرض نافذة تأكيد مع زر واتساب برسالة جاهزة للمتدرب.
+      function showNotify(title, bodyHtml, phone, message) {
+        $('notifyTitle').textContent = title;
+        $('notifyBody').innerHTML = bodyHtml;
+
+        if (cleanSaudiPhone(phone)) {
+          $('notifyActions').innerHTML =
+            createWhatsappLink(phone, message) +
+            '<p style="margin: 8px 0 0; color: #6b7280; font-size: 13px;">' +
+            'يفتح واتساب برسالة جاهزة — راجعها ثم اضغط إرسال.</p>';
+        } else {
+          $('notifyActions').innerHTML =
+            '<div class="notice warn">لا يوجد رقم جوال مسجّل لهذا المتدرب لإرسال الرسالة.</div>';
+        }
+
+        showModal('notifyModal');
       }
 
       function showDelayedTools() {
@@ -2436,13 +2507,17 @@
               '</tr></thead><tbody>';
 
             delayed.forEach(function (borrow) {
+              var hours = Math.floor(borrow.elapsedMinutes / 60);
+
               var message =
                 'السلام عليكم ' + borrow.traineeName + '،\n' +
                 'من الكلية التقنية بالمذنب.\n' +
-                'نود تذكيركم بأن الأداة «' + borrow.toolName +
-                '» في عهدتكم منذ ' +
-                Math.floor(borrow.elapsedMinutes / 60) +
-                ' ساعة. يرجى المبادرة بالإرجاع.';
+                'نذكّركم بأن الأداة «' + borrow.toolName + '»' +
+                (borrow.toolId ? ' (رقم ' + borrow.toolId + ')' : '') +
+                ' ما زالت في عهدتكم منذ ' + hours + ' ساعة ولم تُسلَّم بعد.\n\n' +
+                'العهدة في ذمّتكم وتحت مسؤوليتكم حتى تسليمها، ' +
+                'ونأمل المبادرة بإرجاعها في أقرب وقت حفاظًا على حقكم وحق الكلية.\n' +
+                'شكرًا لتعاونكم وحرصكم.';
 
               html +=
                 '<tr>' +
