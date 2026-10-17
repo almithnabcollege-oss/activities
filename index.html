@@ -853,13 +853,10 @@
       <div class="form-group">
         <label>نوع المنشط *</label>
         <select id="activityCategory">
-          <option>ورشة عمل</option>
+          <option>ورشة</option>
           <option>محاضرة</option>
           <option>مسابقة</option>
           <option>زيارة</option>
-          <option>تحدي</option>
-          <option>بطولة</option>
-          <option>موهبة وابتكار</option>
           <option>أخرى</option>
         </select>
       </div>
@@ -1126,6 +1123,7 @@
       var qrRunning = false;
       var qrPurpose = 'trainee'; // 'trainee' لمسح البطاقة، 'tool' لمسح رمز الأداة
       var invoiceFileId = null;  // معرّف صورة الفاتورة بعد رفعها
+      var invoiceUploading = false; // قيد رفع صورة الفاتورة (لمنع الحفظ قبل اكتماله)
 
       // روابط المكتبات الثقيلة — تُحمّل عند الحاجة فقط لتسريع الفتح.
       var LIBS = {
@@ -2315,6 +2313,7 @@
       function openInvoiceForm(activityId) {
         window.currentInvoiceActivity = activityId;
         invoiceFileId = null;
+        invoiceUploading = false;
 
         $('invoiceNo').value = '';
         $('invoiceStatement').value = '';
@@ -2398,48 +2397,55 @@
           return;
         }
 
+        invoiceUploading = true;
         $('invoiceStatus').innerHTML =
-          '<div class="notice info">جاري المعالجة (قراءة الرمز + رفع الصورة)... لحظات.</div>';
+          '<div class="notice info">جاري المعالجة (قراءة الرمز + رفع الصورة إلى Drive)... لحظات.</div>';
 
-        tryReadInvoiceQrFromFile(file).then(function (zatca) {
-          compressImage(file, 1500, 0.7).then(function (dataUrl) {
-            var base64 = dataUrl.split(',')[1];
+        tryReadInvoiceQrFromFile(file)
+          .then(function (zatca) {
+            return compressImage(file, 1500, 0.7).then(function (dataUrl) {
+              var base64 = dataUrl.split(',')[1];
 
-            runServer('uploadInvoice', {
-              imageBase64: base64,
-              mimeType: 'image/jpeg'
-            }, function (result) {
-              invoiceFileId = result.fileId;
-              var g = result.guess || {};
+              return callApi('uploadInvoice', {
+                imageBase64: base64,
+                mimeType: 'image/jpeg'
+              }).then(function (result) {
+                invoiceFileId = result.fileId;
+                var g = result.guess || {};
 
-              if (zatca && zatca.total) {
-                // الأولوية للرمز الضريبي (دقيق).
-                $('invoiceAmount').value = zatca.total;
-                if (zatca.seller && !$('invoiceStatement').value) {
-                  $('invoiceStatement').value = zatca.seller;
+                if (zatca && zatca.total) {
+                  $('invoiceAmount').value = zatca.total;
+                  if (zatca.seller && !$('invoiceStatement').value) {
+                    $('invoiceStatement').value = zatca.seller;
+                  }
+                  $('invoiceStatus').innerHTML =
+                    '<div class="notice ok">تمت قراءة <b>رمز الفاتورة الضريبي</b> بدقة ✓ (المبلغ: ' +
+                    escapeHtml(zatca.total) + ')، و<b>حُفظت نسخة الصورة في Drive</b>. راجع باقي الحقول.</div>';
+                } else {
+                  if (g.amount && !$('invoiceAmount').value) { $('invoiceAmount').value = g.amount; }
+                  if (g.invoiceNo && !$('invoiceNo').value) { $('invoiceNo').value = g.invoiceNo; }
+                  if (g.payment) { $('invoicePayment').value = g.payment; }
+
+                  var read = (g.amount || g.invoiceNo || g.payment);
+                  $('invoiceStatus').innerHTML =
+                    '<div class="notice ' + (read ? 'ok' : 'info') + '"><b>حُفظت نسخة الصورة في Drive</b>' +
+                    (read
+                      ? ' مع قراءة مبدئية — راجع الحقول وصحّحها.'
+                      : ' — لا يوجد رمز ضريبي، أدخل البيانات يدويًا.') +
+                    '</div>';
                 }
-                $('invoiceStatus').innerHTML =
-                  '<div class="notice ok">تمت قراءة <b>رمز الفاتورة الضريبي</b> بدقة ✓ (المبلغ: ' +
-                  escapeHtml(zatca.total) + '). راجع باقي الحقول.</div>';
-              } else {
-                if (g.amount && !$('invoiceAmount').value) { $('invoiceAmount').value = g.amount; }
-                if (g.invoiceNo && !$('invoiceNo').value) { $('invoiceNo').value = g.invoiceNo; }
-                if (g.payment) { $('invoicePayment').value = g.payment; }
-
-                var read = (g.amount || g.invoiceNo || g.payment);
-                $('invoiceStatus').innerHTML =
-                  '<div class="notice ' + (read ? 'ok' : 'info') + '">تم رفع الصورة' +
-                  (read
-                    ? ' وقراءة مبدئية — <b>راجع الحقول وصحّحها</b>.'
-                    : ' — لا يوجد رمز ضريبي، أدخل البيانات يدويًا.') +
-                  '</div>';
-              }
+              });
             });
-          }).catch(function () {
+          })
+          .catch(function (err) {
             $('invoiceStatus').innerHTML =
-              '<div class="notice error">تعذّر تجهيز الصورة. جرّب صورة أخرى أو أدخل يدويًا.</div>';
+              '<div class="notice error">تعذّر رفع/معالجة الصورة: ' +
+              escapeHtml(err && err.message ? err.message : err) +
+              '. حاول مجددًا أو أدخل البيانات يدويًا.</div>';
+          })
+          .then(function () {
+            invoiceUploading = false;
           });
-        });
       }
 
       // تطبيق نتيجة مسح رمز الفاتورة الضريبي بالكاميرا المباشرة (بلا حفظ صورة).
@@ -2460,6 +2466,11 @@
       }
 
       function saveInvoiceRecord() {
+        if (invoiceUploading) {
+          alert('انتظر اكتمال رفع صورة الفاتورة إلى Drive قبل الحفظ.');
+          return;
+        }
+
         var amount = $('invoiceAmount').value.trim();
 
         if (!amount) {
