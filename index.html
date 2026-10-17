@@ -1014,7 +1014,7 @@
     <div class="modal-box">
       <button class="close" data-close="invoiceModal">×</button>
 
-      <h3>إضافة فاتورة</h3>
+      <h3 id="invoiceModalTitle">إضافة فاتورة</h3>
 
       <div class="form-group">
         <label>إدخال الفاتورة</label>
@@ -1124,6 +1124,8 @@
       var qrPurpose = 'trainee'; // 'trainee' لمسح البطاقة، 'tool' لمسح رمز الأداة
       var invoiceFileId = null;  // معرّف صورة الفاتورة بعد رفعها
       var invoiceUploading = false; // قيد رفع صورة الفاتورة (لمنع الحفظ قبل اكتماله)
+      var editingInvoiceId = null;  // رقم سجل الفاتورة عند التعديل (null = فاتورة جديدة)
+      var currentInvoices = [];     // فواتير النشاط المعروض حاليًا
 
       // روابط المكتبات الثقيلة — تُحمّل عند الحاجة فقط لتسريع الفتح.
       var LIBS = {
@@ -2254,6 +2256,8 @@
       }
 
       function renderInvoices(activityId, invoices) {
+        currentInvoices = invoices;
+
         var total = invoices.reduce(function (sum, inv) {
           var n = parseFloat(inv.amount);
           return sum + (isNaN(n) ? 0 : n);
@@ -2272,7 +2276,7 @@
             '<th>البيان</th>' +
             '<th>المبلغ</th>' +
             '<th>طريقة السداد</th>' +
-            '<th>الصورة</th>' +
+            '<th>إجراءات</th>' +
             '</tr></thead><tbody>';
 
           invoices.forEach(function (inv) {
@@ -2284,8 +2288,10 @@
               '<td>' + escapeHtml(inv.payment || '-') + '</td>' +
               '<td>' +
               (inv.fileId
-                ? '<button class="btn secondary" data-view-invoice="' + escapeHtml(inv.fileId) + '">عرض</button>'
-                : '-') +
+                ? '<button class="btn secondary" data-view-invoice="' + escapeHtml(inv.fileId) + '">عرض</button> '
+                : '') +
+              '<button class="btn" data-edit-invoice="' + escapeHtml(inv.id) + '">تعديل</button> ' +
+              '<button class="btn danger" data-del-invoice="' + escapeHtml(inv.id) + '">حذف</button>' +
               '</td>' +
               '</tr>';
           });
@@ -2308,13 +2314,66 @@
             viewInvoiceImage(button.dataset.viewInvoice);
           };
         });
+
+        document.querySelectorAll('[data-edit-invoice]').forEach(function (button) {
+          button.onclick = function () {
+            editInvoice(button.dataset.editInvoice);
+          };
+        });
+
+        document.querySelectorAll('[data-del-invoice]').forEach(function (button) {
+          button.onclick = function () {
+            deleteInvoiceRecord(button.dataset.delInvoice);
+          };
+        });
+      }
+
+      function editInvoice(id) {
+        var inv = currentInvoices.find(function (x) {
+          return String(x.id) === String(id);
+        });
+        if (!inv) {
+          return;
+        }
+
+        editingInvoiceId = inv.id;
+        invoiceFileId = inv.fileId || null;
+        invoiceUploading = false;
+
+        $('invoiceNo').value = inv.invoiceNo || '';
+        $('invoiceStatement').value = inv.statement || '';
+        $('invoiceAmount').value = inv.amount || '';
+        $('invoicePayment').value = inv.payment || 'نقد';
+        $('invoiceCameraInput').value = '';
+        $('invoiceGalleryInput').value = '';
+
+        $('invoiceModalTitle').textContent = 'تعديل فاتورة';
+        $('saveInvoiceBtn').textContent = 'حفظ التعديل';
+        $('invoiceStatus').innerHTML =
+          '<div class="notice info">عدّل الحقول. ولتبديل صورة الفاتورة أرفق صورة جديدة (تستبدل القديمة)' +
+          (inv.fileId ? '.' : '، أو أرفق صورة إن لم تكن محفوظة.') + '</div>';
+
+        showModal('invoiceModal');
+      }
+
+      function deleteInvoiceRecord(id) {
+        if (!confirm('حذف هذه الفاتورة نهائيًا؟ (تُنقل صورتها إلى مهملات Drive)')) {
+          return;
+        }
+
+        runServer('deleteInvoice', { id: id }, function () {
+          loadInvoices(window.currentActivityId);
+        });
       }
 
       function openInvoiceForm(activityId) {
         window.currentInvoiceActivity = activityId;
+        editingInvoiceId = null;
         invoiceFileId = null;
         invoiceUploading = false;
 
+        $('invoiceModalTitle').textContent = 'إضافة فاتورة';
+        $('saveInvoiceBtn').textContent = 'حفظ الفاتورة';
         $('invoiceNo').value = '';
         $('invoiceStatement').value = '';
         $('invoiceAmount').value = '';
@@ -2475,6 +2534,23 @@
 
         if (!amount) {
           alert('أدخل المبلغ.');
+          return;
+        }
+
+        if (editingInvoiceId) {
+          // تعديل فاتورة موجودة.
+          runServer('updateInvoice', {
+            id: editingInvoiceId,
+            invoiceNo: $('invoiceNo').value.trim(),
+            statement: $('invoiceStatement').value.trim(),
+            amount: amount,
+            payment: $('invoicePayment').value,
+            fileId: invoiceFileId || ''
+          }, function () {
+            hideModal('invoiceModal');
+            loadInvoices(window.currentInvoiceActivity);
+            alert('تم تحديث الفاتورة.');
+          });
           return;
         }
 
