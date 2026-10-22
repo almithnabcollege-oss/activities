@@ -1082,7 +1082,7 @@
 
   <!-- مُدخلات مخفية لمرفقات النشاط -->
   <input id="actCameraInput" type="file" accept="image/*" capture="environment" class="hidden">
-  <input id="actGalleryInput" type="file" accept="image/*" class="hidden">
+  <input id="actGalleryInput" type="file" accept="image/*" multiple class="hidden">
   <input id="actPdfInput" type="file" accept="application/pdf" class="hidden">
 
   <div id="bulkModal" class="modal">
@@ -2320,21 +2320,42 @@
         });
       }
 
-      // رفع صورة نشاط (تصوير/معرض): ضغط ثم رفع.
+      // رفع صور نشاط (تصوير/معرض) — يدعم عدة صور دفعة واحدة، رفعًا متسلسلًا مع عدّاد.
       function handleActivityPhoto(event) {
-        var file = event.target.files && event.target.files[0];
+        var list = Array.prototype.slice.call(event.target.files || []);
         event.target.value = '';
-        if (!file) { return; }
+        if (!list.length) { return; }
 
-        $('actUploadStatus').innerHTML =
-          '<div class="notice info">جاري ضغط الصورة ورفعها... لحظات.</div>';
+        var total = list.length;
+        var done = 0;
 
-        compressImage(file, 1600, 0.72).then(function (dataUrl) {
-          sendActivityFile(dataUrl.split(',')[1], 'image/jpeg', 'نشاط_' + Date.now() + '.jpg', 'صورة');
-        }).catch(function () {
+        function uploadNext(i) {
+          if (i >= total) {
+            $('actUploadStatus').innerHTML =
+              '<div class="notice ok">تم رفع ' + done + ' من ' + total + ' صورة.</div>';
+            loadActivityFiles(window.currentActivityId);
+            return;
+          }
+
           $('actUploadStatus').innerHTML =
-            '<div class="notice error">تعذّر تجهيز الصورة.</div>';
-        });
+            '<div class="notice info">جاري رفع الصورة ' + (i + 1) + ' من ' + total + '...</div>';
+
+          compressImage(list[i], 1600, 0.72)
+            .then(function (dataUrl) {
+              return callApi('uploadActivityFile', {
+                activityId: window.currentActivityId,
+                base64: dataUrl.split(',')[1],
+                mimeType: 'image/jpeg',
+                name: 'نشاط_' + Date.now() + '_' + (i + 1) + '.jpg',
+                kind: 'صورة',
+                employeeName: (session && session.name) ? session.name : getEmployeeName()
+              });
+            })
+            .then(function () { done++; uploadNext(i + 1); })
+            .catch(function () { uploadNext(i + 1); }); // تخطّي الصورة الفاشلة
+        }
+
+        uploadNext(0);
       }
 
       // رفع تقرير PDF كما هو.
